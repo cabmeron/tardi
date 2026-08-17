@@ -1,0 +1,388 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0C1FB36CB8B5D1711C3D2B9A /* TravelMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A117F23956C1E89C11062939 /* TravelMode.swift */; };
+		0F51EC633DD1710055ED4A16 /* CommitmentEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845789FE3DAB25528A1D2E05 /* CommitmentEvaluator.swift */; };
+		1D1D017DB7F3C4D16FD23E44 /* CommitmentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E8A0E49D0FDEE9CDFD2F6E /* CommitmentDetailView.swift */; };
+		3E50F5A3C88DCB1E3D8B215E /* RadarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1EAEA5A41B908D89AF485F6 /* RadarView.swift */; };
+		40759D7D46D9099079122F1E /* RadarHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79FCA59400369C8723E3457C /* RadarHomeView.swift */; };
+		4B968C8EE34FF3C08AE77AD5 /* CheckInRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E1E81E5006DC090B3CE18E0 /* CheckInRecord.swift */; };
+		58E3510F85BF6D8FA7533041 /* ScheduleControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905A4483F29BDDAF43EC7B9A /* ScheduleControls.swift */; };
+		68DD62A18EED198384711A3C /* NewCommitmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51794066C59310752FB4DDB /* NewCommitmentView.swift */; };
+		73217D2DB80C2C86034BC057 /* TardiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5DDD76D557467A2DAF7DFC /* TardiApp.swift */; };
+		746BE3676A5714D73029D49E /* LofiMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 582C7DB61C828E82E0BCDAFE /* LofiMapView.swift */; };
+		9518FBAE43D0DD47437FD85B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ECF1A034E1C3C3765B8DFA76 /* Assets.xcassets */; };
+		9B5DB4384DC2E5742E353EF2 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263628DB9D53ED61A63BF498 /* NotificationManager.swift */; };
+		BDDDD054462EA7F1EE39647A /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9B6CC1A378E1663E269D4A2 /* LocationManager.swift */; };
+		D3406C7FFCA472009C401E3A /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62EE9E3433AC0909F23246F4 /* Components.swift */; };
+		E7C2518FCB5A2710D34AD66E /* RadarGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C3EFB46CF59AEF74C2D80A /* RadarGeometry.swift */; };
+		F2B2E85736D65E066BC3EA64 /* Commitment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A95BCDB46D54671CF4E59 /* Commitment.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1C5DDD76D557467A2DAF7DFC /* TardiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TardiApp.swift; sourceTree = "<group>"; };
+		263628DB9D53ED61A63BF498 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		30C3EFB46CF59AEF74C2D80A /* RadarGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarGeometry.swift; sourceTree = "<group>"; };
+		3AE196E6F804FB2CE13081A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		4E1E81E5006DC090B3CE18E0 /* CheckInRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInRecord.swift; sourceTree = "<group>"; };
+		582C7DB61C828E82E0BCDAFE /* LofiMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LofiMapView.swift; sourceTree = "<group>"; };
+		62EE9E3433AC0909F23246F4 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		6B5A95BCDB46D54671CF4E59 /* Commitment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Commitment.swift; sourceTree = "<group>"; };
+		79FCA59400369C8723E3457C /* RadarHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarHomeView.swift; sourceTree = "<group>"; };
+		845789FE3DAB25528A1D2E05 /* CommitmentEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitmentEvaluator.swift; sourceTree = "<group>"; };
+		905A4483F29BDDAF43EC7B9A /* ScheduleControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleControls.swift; sourceTree = "<group>"; };
+		A117F23956C1E89C11062939 /* TravelMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelMode.swift; sourceTree = "<group>"; };
+		A1EAEA5A41B908D89AF485F6 /* RadarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarView.swift; sourceTree = "<group>"; };
+		A5E8A0E49D0FDEE9CDFD2F6E /* CommitmentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitmentDetailView.swift; sourceTree = "<group>"; };
+		E51794066C59310752FB4DDB /* NewCommitmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewCommitmentView.swift; sourceTree = "<group>"; };
+		ECF1A034E1C3C3765B8DFA76 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F12C8CF7C2396131B9BDE995 /* Tardi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tardi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F9B6CC1A378E1663E269D4A2 /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		2A5AAD4066551EC30091CA82 /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				845789FE3DAB25528A1D2E05 /* CommitmentEvaluator.swift */,
+				F9B6CC1A378E1663E269D4A2 /* LocationManager.swift */,
+				263628DB9D53ED61A63BF498 /* NotificationManager.swift */,
+			);
+			path = Managers;
+			sourceTree = "<group>";
+		};
+		32EF8744B4E8738182069C6A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F12C8CF7C2396131B9BDE995 /* Tardi.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		805AA1FBE69868DE8D9B9B8F = {
+			isa = PBXGroup;
+			children = (
+				BF8CEB882191933A97921E7A /* Tardi */,
+				32EF8744B4E8738182069C6A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8B22BA3F683AEC5D2459B52E /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A5E8A0E49D0FDEE9CDFD2F6E /* CommitmentDetailView.swift */,
+				62EE9E3433AC0909F23246F4 /* Components.swift */,
+				582C7DB61C828E82E0BCDAFE /* LofiMapView.swift */,
+				E51794066C59310752FB4DDB /* NewCommitmentView.swift */,
+				30C3EFB46CF59AEF74C2D80A /* RadarGeometry.swift */,
+				79FCA59400369C8723E3457C /* RadarHomeView.swift */,
+				A1EAEA5A41B908D89AF485F6 /* RadarView.swift */,
+				905A4483F29BDDAF43EC7B9A /* ScheduleControls.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		926756C3B92C693A40CC970D /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				4E1E81E5006DC090B3CE18E0 /* CheckInRecord.swift */,
+				6B5A95BCDB46D54671CF4E59 /* Commitment.swift */,
+				A117F23956C1E89C11062939 /* TravelMode.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		BF8CEB882191933A97921E7A /* Tardi */ = {
+			isa = PBXGroup;
+			children = (
+				ECF1A034E1C3C3765B8DFA76 /* Assets.xcassets */,
+				3AE196E6F804FB2CE13081A5 /* Info.plist */,
+				1C5DDD76D557467A2DAF7DFC /* TardiApp.swift */,
+				2A5AAD4066551EC30091CA82 /* Managers */,
+				926756C3B92C693A40CC970D /* Models */,
+				8B22BA3F683AEC5D2459B52E /* Views */,
+			);
+			path = Tardi;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BEA11A604D9CCBD22F999BAB /* Tardi */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0B62A86FE69C61916CE0FFF0 /* Build configuration list for PBXNativeTarget "Tardi" */;
+			buildPhases = (
+				F6FEA2A464C505E0D710EC3C /* Sources */,
+				341CCCB19A4DA7567BA6C201 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Tardi;
+			packageProductDependencies = (
+			);
+			productName = Tardi;
+			productReference = F12C8CF7C2396131B9BDE995 /* Tardi.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		87F2D915AD8F9B432384013A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					BEA11A604D9CCBD22F999BAB = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 3F6E7E2CE2221FAC413FFB1F /* Build configuration list for PBXProject "Tardi" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 805AA1FBE69868DE8D9B9B8F;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 32EF8744B4E8738182069C6A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BEA11A604D9CCBD22F999BAB /* Tardi */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		341CCCB19A4DA7567BA6C201 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9518FBAE43D0DD47437FD85B /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F6FEA2A464C505E0D710EC3C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4B968C8EE34FF3C08AE77AD5 /* CheckInRecord.swift in Sources */,
+				F2B2E85736D65E066BC3EA64 /* Commitment.swift in Sources */,
+				1D1D017DB7F3C4D16FD23E44 /* CommitmentDetailView.swift in Sources */,
+				0F51EC633DD1710055ED4A16 /* CommitmentEvaluator.swift in Sources */,
+				D3406C7FFCA472009C401E3A /* Components.swift in Sources */,
+				BDDDD054462EA7F1EE39647A /* LocationManager.swift in Sources */,
+				746BE3676A5714D73029D49E /* LofiMapView.swift in Sources */,
+				68DD62A18EED198384711A3C /* NewCommitmentView.swift in Sources */,
+				9B5DB4384DC2E5742E353EF2 /* NotificationManager.swift in Sources */,
+				E7C2518FCB5A2710D34AD66E /* RadarGeometry.swift in Sources */,
+				40759D7D46D9099079122F1E /* RadarHomeView.swift in Sources */,
+				3E50F5A3C88DCB1E3D8B215E /* RadarView.swift in Sources */,
+				58E3510F85BF6D8FA7533041 /* ScheduleControls.swift in Sources */,
+				73217D2DB80C2C86034BC057 /* TardiApp.swift in Sources */,
+				0C1FB36CB8B5D1711C3D2B9A /* TravelMode.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		8F21A4DA14D72B495A87BCDA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = A4ZWG75X3A;
+				INFOPLIST_FILE = Tardi/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmccoy.tardi;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A44CC0A50EE25B25E1A34892 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = A4ZWG75X3A;
+				INFOPLIST_FILE = Tardi/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmccoy.tardi;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		B5B43629C9F5F18FC0A19D84 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E0629C5AD7855F8FA62CC5B8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0B62A86FE69C61916CE0FFF0 /* Build configuration list for PBXNativeTarget "Tardi" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8F21A4DA14D72B495A87BCDA /* Debug */,
+				A44CC0A50EE25B25E1A34892 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3F6E7E2CE2221FAC413FFB1F /* Build configuration list for PBXProject "Tardi" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B5B43629C9F5F18FC0A19D84 /* Debug */,
+				E0629C5AD7855F8FA62CC5B8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 87F2D915AD8F9B432384013A /* Project object */;
+}
