@@ -1,0 +1,172 @@
+import Foundation
+import SwiftData
+import CoreLocation
+
+/// A scheduled task, habit, or arrival commitment attached to a LocationNode.
+/// Multiple tasks can be assigned to the same node to reuse locations.
+@Model
+final class HabitTask {
+    var id: UUID
+    var title: String
+
+    // Schedule (weekdays: 1 = Sunday ... 7 = Saturday; empty means oneTimeDate)
+    var weekdays: [Int]
+    var deadlineHour: Int
+    var deadlineMinute: Int
+    var oneTimeDate: Date?
+
+    var streak: Int
+    var isActive: Bool
+    var lastEvaluatedDeadline: Date?
+    var createdAt: Date
+
+    var node: LocationNode?
+
+    @Relationship(deleteRule: .cascade, inverse: \CheckInRecord.task)
+    var history: [CheckInRecord] = []
+
+    init(
+        title: String,
+        weekdays: [Int],
+        deadlineHour: Int,
+        deadlineMinute: Int,
+        oneTimeDate: Date? = nil,
+        node: LocationNode? = nil
+    ) {
+        self.id = UUID()
+        self.title = title
+        self.weekdays = weekdays
+        self.deadlineHour = deadlineHour
+        self.deadlineMinute = deadlineMinute
+        self.oneTimeDate = oneTimeDate
+        self.streak = 0
+        self.isActive = true
+        self.lastEvaluatedDeadline = nil
+        self.createdAt = Date()
+        self.node = node
+    }
+
+    var isRecurring: Bool { !weekdays.isEmpty }
+
+    var formattedDeadlineTime: String {
+        var components = DateComponents()
+        components.hour = deadlineHour
+        components.minute = deadlineMinute
+        let date = Calendar.current.date(from: components) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
+    var scheduleSummary: String {
+        let time = formattedDeadlineTime
+        if isRecurring {
+            let symbols = Calendar.current.shortWeekdaySymbols
+            let names = weekdays.sorted().compactMap { weekday -> String? in
+                guard weekday >= 1, weekday <= symbols.count else { return nil }
+                return symbols[weekday - 1]
+            }
+            return "\(names.joined(separator: ", ")) · \(time)"
+        } else if let date = oneTimeDate {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d"
+            return "\(formatter.string(from: date)) · \(time)"
+        }
+        return time
+    }
+
+    /// The most recent deadline at or before `referenceDate` that hasn't been scored yet
+    func pendingDeadline(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Date? {
+        if isRecurring {
+            for daysAgo in 0..<8 {
+                guard let day = calendar.date(byAdding: .day, value: -daysAgo, to: referenceDate) else { continue }
+                let weekday = calendar.component(.weekday, from: day)
+                guard weekdays.contains(weekday) else { continue }
+                guard let deadline = calendar.date(bySettingHour: deadlineHour, minute: deadlineMinute, second: 0, of: day) else { continue }
+                if deadline > referenceDate { continue }
+                if let last = lastEvaluatedDeadline, last >= deadline { continue }
+                return deadline
+            }
+            return nil
+        } else {
+            guard let oneTimeDate else { return nil }
+            guard let deadline = calendar.date(bySettingHour: deadlineHour, minute: deadlineMinute, second: 0, of: oneTimeDate) else { return nil }
+            if deadline > referenceDate { return nil }
+            if let last = lastEvaluatedDeadline, last >= deadline { return nil }
+            return deadline
+        }
+    }
+
+    /// The next upcoming deadline strictly after `referenceDate`
+    func nextDeadline(after referenceDate: Date = Date(), calendar: Calendar = .current) -> Date? {
+        if isRecurring {
+            for daysAhead in 0..<8 {
+                guard let day = calendar.date(byAdding: .day, value: daysAhead, to: referenceDate) else { continue }
+                let weekday = calendar.component(.weekday, from: day)
+                guard weekdays.contains(weekday) else { continue }
+                guard let deadline = calendar.date(bySettingHour: deadlineHour, minute: deadlineMinute, second: 0, of: day) else { continue }
+                if deadline > referenceDate { return deadline }
+            }
+            return nil
+        } else {
+            guard let oneTimeDate else { return nil }
+            guard let deadline = calendar.date(bySettingHour: deadlineHour, minute: deadlineMinute, second: 0, of: oneTimeDate) else { return nil }
+            return deadline > referenceDate ? deadline : nil
+        }
+    }
+
+    func fuseProgress(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Double? {
+        if isCompletedForToday(asOf: referenceDate) {
+            return 1.0
+        }
+        guard let deadline = nextDeadline(after: referenceDate, calendar: calendar) else { return nil }
+        let window: TimeInterval = 24 * 60 * 60
+        let remaining = deadline.timeIntervalSince(referenceDate)
+        return min(max(remaining / window, 0), 1)
+    }
+
+    func isCompletedForToday(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard let last = lastEvaluatedDeadline else { return false }
+        if isRecurring {
+            return calendar.isDate(last, inSameDayAs: referenceDate)
+        } else {
+            return true
+        }
+    }
+
+    func timeRemaining(asOf referenceDate: Date = Date()) -> TimeInterval? {
+        guard let deadline = nextDeadline(after: referenceDate) else { return nil }
+        return max(deadline.timeIntervalSince(referenceDate), 0)
+    }
+
+    func formattedTimeRemaining(asOf referenceDate: Date = Date()) -> String {
+        if isCompletedForToday(asOf: referenceDate) {
+            return "Done"
+        }
+        guard let remaining = timeRemaining(asOf: referenceDate) else { return "Passed" }
+        let totalSeconds = Int(remaining)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else if minutes > 0 {
+            return "\(minutes)m"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+
+    @MainActor
+    func checkInEarly(now: Date = Date(), in context: ModelContext) {
+        guard let deadline = nextDeadline(after: now) else { return }
+        streak += 1
+        lastEvaluatedDeadline = deadline
+
+        let record = CheckInRecord(date: now, success: true, task: self)
+        context.insert(record)
+        try? context.save()
+
+        NotificationManager.shared.sendTaskResultNotification(for: self, success: true)
+        NotificationManager.shared.cancelPendingNotifications(for: self)
+    }
+}

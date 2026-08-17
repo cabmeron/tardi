@@ -7,43 +7,47 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		091164140A2EAE381D178695 /* NewTaskSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8BD08007FE4DB59C61CDDD /* NewTaskSheet.swift */; };
 		0C1FB36CB8B5D1711C3D2B9A /* TravelMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A117F23956C1E89C11062939 /* TravelMode.swift */; };
 		0F51EC633DD1710055ED4A16 /* CommitmentEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845789FE3DAB25528A1D2E05 /* CommitmentEvaluator.swift */; };
 		1D1D017DB7F3C4D16FD23E44 /* CommitmentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E8A0E49D0FDEE9CDFD2F6E /* CommitmentDetailView.swift */; };
-		3E50F5A3C88DCB1E3D8B215E /* RadarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1EAEA5A41B908D89AF485F6 /* RadarView.swift */; };
 		40759D7D46D9099079122F1E /* RadarHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79FCA59400369C8723E3457C /* RadarHomeView.swift */; };
 		4B968C8EE34FF3C08AE77AD5 /* CheckInRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E1E81E5006DC090B3CE18E0 /* CheckInRecord.swift */; };
 		58E3510F85BF6D8FA7533041 /* ScheduleControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905A4483F29BDDAF43EC7B9A /* ScheduleControls.swift */; };
 		68DD62A18EED198384711A3C /* NewCommitmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51794066C59310752FB4DDB /* NewCommitmentView.swift */; };
+		7094ACD220982AA7DC50CE20 /* DraftLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74691134C94BDCD1AF608AA6 /* DraftLocation.swift */; };
 		73217D2DB80C2C86034BC057 /* TardiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5DDD76D557467A2DAF7DFC /* TardiApp.swift */; };
 		746BE3676A5714D73029D49E /* LofiMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 582C7DB61C828E82E0BCDAFE /* LofiMapView.swift */; };
 		9518FBAE43D0DD47437FD85B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ECF1A034E1C3C3765B8DFA76 /* Assets.xcassets */; };
 		9B5DB4384DC2E5742E353EF2 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263628DB9D53ED61A63BF498 /* NotificationManager.swift */; };
+		B40D0A75F3B13C094C783C4C /* HabitTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B67F04BA022601B443452AC /* HabitTask.swift */; };
 		BDDDD054462EA7F1EE39647A /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9B6CC1A378E1663E269D4A2 /* LocationManager.swift */; };
 		D3406C7FFCA472009C401E3A /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62EE9E3433AC0909F23246F4 /* Components.swift */; };
 		E7C2518FCB5A2710D34AD66E /* RadarGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C3EFB46CF59AEF74C2D80A /* RadarGeometry.swift */; };
-		F2B2E85736D65E066BC3EA64 /* Commitment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A95BCDB46D54671CF4E59 /* Commitment.swift */; };
+		ED4B344BF727888FA720D8B7 /* LocationNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD021B4BC833FAF28B649351 /* LocationNode.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0B67F04BA022601B443452AC /* HabitTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTask.swift; sourceTree = "<group>"; };
 		1C5DDD76D557467A2DAF7DFC /* TardiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TardiApp.swift; sourceTree = "<group>"; };
 		263628DB9D53ED61A63BF498 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		30C3EFB46CF59AEF74C2D80A /* RadarGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarGeometry.swift; sourceTree = "<group>"; };
 		3AE196E6F804FB2CE13081A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3D8BD08007FE4DB59C61CDDD /* NewTaskSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewTaskSheet.swift; sourceTree = "<group>"; };
 		4E1E81E5006DC090B3CE18E0 /* CheckInRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInRecord.swift; sourceTree = "<group>"; };
 		582C7DB61C828E82E0BCDAFE /* LofiMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LofiMapView.swift; sourceTree = "<group>"; };
 		62EE9E3433AC0909F23246F4 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
-		6B5A95BCDB46D54671CF4E59 /* Commitment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Commitment.swift; sourceTree = "<group>"; };
+		74691134C94BDCD1AF608AA6 /* DraftLocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftLocation.swift; sourceTree = "<group>"; };
 		79FCA59400369C8723E3457C /* RadarHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarHomeView.swift; sourceTree = "<group>"; };
 		845789FE3DAB25528A1D2E05 /* CommitmentEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitmentEvaluator.swift; sourceTree = "<group>"; };
 		905A4483F29BDDAF43EC7B9A /* ScheduleControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleControls.swift; sourceTree = "<group>"; };
 		A117F23956C1E89C11062939 /* TravelMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelMode.swift; sourceTree = "<group>"; };
-		A1EAEA5A41B908D89AF485F6 /* RadarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarView.swift; sourceTree = "<group>"; };
 		A5E8A0E49D0FDEE9CDFD2F6E /* CommitmentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitmentDetailView.swift; sourceTree = "<group>"; };
 		E51794066C59310752FB4DDB /* NewCommitmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewCommitmentView.swift; sourceTree = "<group>"; };
 		ECF1A034E1C3C3765B8DFA76 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F12C8CF7C2396131B9BDE995 /* Tardi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tardi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F9B6CC1A378E1663E269D4A2 /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
+		FD021B4BC833FAF28B649351 /* LocationNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationNode.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -80,9 +84,9 @@
 				62EE9E3433AC0909F23246F4 /* Components.swift */,
 				582C7DB61C828E82E0BCDAFE /* LofiMapView.swift */,
 				E51794066C59310752FB4DDB /* NewCommitmentView.swift */,
+				3D8BD08007FE4DB59C61CDDD /* NewTaskSheet.swift */,
 				30C3EFB46CF59AEF74C2D80A /* RadarGeometry.swift */,
 				79FCA59400369C8723E3457C /* RadarHomeView.swift */,
-				A1EAEA5A41B908D89AF485F6 /* RadarView.swift */,
 				905A4483F29BDDAF43EC7B9A /* ScheduleControls.swift */,
 			);
 			path = Views;
@@ -92,7 +96,9 @@
 			isa = PBXGroup;
 			children = (
 				4E1E81E5006DC090B3CE18E0 /* CheckInRecord.swift */,
-				6B5A95BCDB46D54671CF4E59 /* Commitment.swift */,
+				74691134C94BDCD1AF608AA6 /* DraftLocation.swift */,
+				0B67F04BA022601B443452AC /* HabitTask.swift */,
+				FD021B4BC833FAF28B649351 /* LocationNode.swift */,
 				A117F23956C1E89C11062939 /* TravelMode.swift */,
 			);
 			path = Models;
@@ -182,17 +188,19 @@
 			buildActionMask = 2147483647;
 			files = (
 				4B968C8EE34FF3C08AE77AD5 /* CheckInRecord.swift in Sources */,
-				F2B2E85736D65E066BC3EA64 /* Commitment.swift in Sources */,
 				1D1D017DB7F3C4D16FD23E44 /* CommitmentDetailView.swift in Sources */,
 				0F51EC633DD1710055ED4A16 /* CommitmentEvaluator.swift in Sources */,
 				D3406C7FFCA472009C401E3A /* Components.swift in Sources */,
+				7094ACD220982AA7DC50CE20 /* DraftLocation.swift in Sources */,
+				B40D0A75F3B13C094C783C4C /* HabitTask.swift in Sources */,
 				BDDDD054462EA7F1EE39647A /* LocationManager.swift in Sources */,
+				ED4B344BF727888FA720D8B7 /* LocationNode.swift in Sources */,
 				746BE3676A5714D73029D49E /* LofiMapView.swift in Sources */,
 				68DD62A18EED198384711A3C /* NewCommitmentView.swift in Sources */,
+				091164140A2EAE381D178695 /* NewTaskSheet.swift in Sources */,
 				9B5DB4384DC2E5742E353EF2 /* NotificationManager.swift in Sources */,
 				E7C2518FCB5A2710D34AD66E /* RadarGeometry.swift in Sources */,
 				40759D7D46D9099079122F1E /* RadarHomeView.swift in Sources */,
-				3E50F5A3C88DCB1E3D8B215E /* RadarView.swift in Sources */,
 				58E3510F85BF6D8FA7533041 /* ScheduleControls.swift in Sources */,
 				73217D2DB80C2C86034BC057 /* TardiApp.swift in Sources */,
 				0C1FB36CB8B5D1711C3D2B9A /* TravelMode.swift in Sources */,

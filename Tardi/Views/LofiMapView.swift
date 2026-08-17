@@ -3,14 +3,14 @@ import MapKit
 import CoreLocation
 
 /// An interactive, lo-fi real map canvas that strips away commercial POI clutter
-/// and road labels, focusing purely on real geographic terrain, custom timed
+/// and road labels, focusing purely on real geographic terrain, custom reusable
 /// habit nodes, geofence boundaries, and smooth high-performance animated routes.
 struct LofiMapView: View {
     @Binding var position: MapCameraPosition
     let userCoordinate: CLLocationCoordinate2D?
-    let commitments: [Commitment]
+    let nodes: [LocationNode]
     @Binding var draft: DraftLocation?
-    var onSelectCommitment: (Commitment) -> Void
+    var onSelectNode: (LocationNode) -> Void
     var onTapCoordinate: (CLLocationCoordinate2D) -> Void
 
     @State private var showTravelLines = true
@@ -20,16 +20,16 @@ struct LofiMapView: View {
         MapReader { proxy in
             ZStack(alignment: .trailing) {
                 Map(position: $position) {
-                    // 1. Geofence radius circles for commitments
-                    ForEach(commitments) { commitment in
+                    // 1. Geofence radius circles for nodes
+                    ForEach(nodes) { node in
                         let center = CLLocationCoordinate2D(
-                            latitude: commitment.latitude,
-                            longitude: commitment.longitude
+                            latitude: node.latitude,
+                            longitude: node.longitude
                         )
-                        let isDone = commitment.isCompletedForToday(asOf: Date())
-                        MapCircle(center: center, radius: commitment.radius)
+                        let isDone = node.isAnyTaskCompletedToday(asOf: Date())
+                        MapCircle(center: center, radius: node.radius)
                             .foregroundStyle(
-                                (isDone ? Color.green : (commitment.isCurrentlyInside ? Color.green : Color.accentColor))
+                                (isDone ? Color.green : (node.isCurrentlyInside ? Color.green : Color.accentColor))
                                     .opacity(0.12)
                             )
                             .mapOverlayLevel(level: .aboveLabels)
@@ -50,21 +50,21 @@ struct LofiMapView: View {
                         .annotationTitles(.hidden)
                     }
 
-                    // 4. Active commitment nodes with live fuse rings, time badges, countdowns & per-node ETAs
-                    ForEach(commitments) { commitment in
+                    // 4. Location nodes with live fuse rings, time badges, countdowns & per-node ETAs
+                    ForEach(nodes) { node in
                         let coordinate = CLLocationCoordinate2D(
-                            latitude: commitment.latitude,
-                            longitude: commitment.longitude
+                            latitude: node.latitude,
+                            longitude: node.longitude
                         )
-                        Annotation(commitment.locationName, coordinate: coordinate) {
+                        Annotation(node.name, coordinate: coordinate) {
                             NodeMarkerView(
-                                commitment: commitment,
+                                node: node,
                                 now: Date(),
                                 userCoordinate: userCoordinate,
                                 showDetailCard: showNodeCards
                             )
                             .onTapGesture {
-                                onSelectCommitment(commitment)
+                                onSelectNode(node)
                             }
                         }
                         .annotationTitles(.hidden)
@@ -94,10 +94,10 @@ struct LofiMapView: View {
                                 let time = timeline.date.timeIntervalSinceReferenceDate
                                 let now = timeline.date
 
-                                for commitment in commitments where commitment.isActive && !commitment.isCompletedForToday(asOf: now) {
+                                for node in nodes where !node.isAnyTaskCompletedToday(asOf: now) && !node.activeTasks.isEmpty {
                                     let targetCoord = CLLocationCoordinate2D(
-                                        latitude: commitment.latitude,
-                                        longitude: commitment.longitude
+                                        latitude: node.latitude,
+                                        longitude: node.longitude
                                     )
                                     guard let targetPoint = proxy.convert(targetCoord, to: .local) else { continue }
 
@@ -106,7 +106,7 @@ struct LofiMapView: View {
                                     let screenDist = sqrt(dx * dx + dy * dy)
                                     guard screenDist > 4 else { continue }
 
-                                    let isInside = commitment.isCurrentlyInside
+                                    let isInside = node.isCurrentlyInside
                                     let baseColor = isInside ? Color.green : Color.accentColor
 
                                     var linePath = Path()
@@ -170,7 +170,7 @@ struct LofiMapView: View {
             .disabled(userCoordinate == nil)
 
             // Fit All Active Nodes
-            if !commitments.isEmpty {
+            if !nodes.isEmpty {
                 Button(action: fitAllNodes) {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.system(size: 14, weight: .semibold))
@@ -183,7 +183,7 @@ struct LofiMapView: View {
             }
 
             // Toggle Radial Travel Lines
-            if !commitments.isEmpty && userCoordinate != nil {
+            if !nodes.isEmpty && userCoordinate != nil {
                 Button(action: { showTravelLines.toggle() }) {
                     Image(systemName: showTravelLines ? "rays" : "circle.dotted")
                         .font(.system(size: 15, weight: .semibold))
@@ -196,7 +196,7 @@ struct LofiMapView: View {
             }
 
             // Toggle Node Detail Cards (Time & Distance vs Minimal Node Only)
-            if !commitments.isEmpty {
+            if !nodes.isEmpty {
                 Button(action: {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                         showNodeCards.toggle()
@@ -230,7 +230,7 @@ struct LofiMapView: View {
     }
 
     private func fitAllNodes() {
-        var coordinates = commitments.map {
+        var coordinates = nodes.map {
             CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
         }
         if let userCoordinate {

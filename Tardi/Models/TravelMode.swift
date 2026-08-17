@@ -73,15 +73,24 @@ enum TravelMode: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Checks whether the user will arrive at the commitment before its deadline
+    /// Formats distance meters into readable miles or feet (e.g. "1.4 mi", "0.3 mi", "350 ft")
+    static func formatMiles(distanceMeters: Double) -> String {
+        let miles = distanceMeters / 1609.344
+        if miles < 0.1 {
+            let feet = Int(distanceMeters * 3.28084)
+            return "\(feet) ft"
+        } else {
+            return String(format: "%.1f mi", miles)
+        }
+    }
+
+    /// Checks whether the user will arrive before a specific deadline
     func arrivalStatus(
         distanceMeters: Double,
-        commitment: Commitment,
+        deadline: Date?,
         now: Date = Date()
     ) -> ArrivalStatus {
-        guard let deadline = commitment.nextDeadline(after: now) else {
-            return .onTime
-        }
+        guard let deadline else { return .onTime }
 
         let travelSeconds = estimatedTravelTime(distanceMeters: distanceMeters)
         let arrivalDate = now.addingTimeInterval(travelSeconds)

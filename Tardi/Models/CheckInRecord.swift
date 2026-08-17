@@ -1,19 +1,18 @@
 import Foundation
 import SwiftData
 
-/// A single scored occurrence of a commitment's deadline: either the user
-/// was inside the geofence, or they weren't.
+/// A single scored occurrence of a habit task's deadline.
 @Model
 final class CheckInRecord {
     var id: UUID
     var date: Date
     var success: Bool
-    var commitment: Commitment?
+    var task: HabitTask?
 
-    init(date: Date, success: Bool, commitment: Commitment?) {
+    init(date: Date, success: Bool, task: HabitTask?) {
         self.id = UUID()
         self.date = date
         self.success = success
-        self.commitment = commitment
+        self.task = task
     }
 }

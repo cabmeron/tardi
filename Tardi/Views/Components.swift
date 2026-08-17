@@ -23,7 +23,7 @@ struct SectionCard<Content: View>: View {
     }
 }
 
-/// Compact "in / out" status dot used in the commitment detail sheet.
+/// Compact "in / out" status dot used in the node detail sheet.
 struct PresenceDot: View {
     let isInside: Bool
 
@@ -34,28 +34,31 @@ struct PresenceDot: View {
     }
 }
 
-/// A commitment's map marker: a dot wrapped in a "fuse" ring that burns down
-/// from a full circle to nothing as its next deadline approaches.
+/// A location node's map marker: a dot wrapped in a "fuse" ring that burns down
+/// as the nearest upcoming task deadline approaches.
 struct FuseRingDot: View {
-    let commitment: Commitment
+    let node: LocationNode
     let now: Date
 
     var body: some View {
-        let isDone = commitment.isCompletedForToday(asOf: now)
-        let color: Color = isDone ? .green : (commitment.isCurrentlyInside ? .green : (commitment.isActive ? Color.accentColor : Color.secondary))
-        let progress = commitment.fuseProgress(asOf: now) ?? 0
+        let isDone = node.isAnyTaskCompletedToday(asOf: now)
+        let hasActiveTasks = !node.activeTasks.isEmpty
+        let color: Color = isDone ? .green : (node.isCurrentlyInside ? .green : (hasActiveTasks ? Color.accentColor : Color.secondary))
+        let progress = node.fuseProgress(asOf: now) ?? 0
 
         ZStack {
             Circle()
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 3)
                 .frame(width: 34, height: 34)
 
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                .frame(width: 34, height: 34)
-                .rotationEffect(.degrees(-90))
-                .animation(.linear(duration: 1), value: progress)
+            if hasActiveTasks {
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .frame(width: 34, height: 34)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 1), value: progress)
+            }
 
             if isDone {
                 Image(systemName: "checkmark")
@@ -116,32 +119,11 @@ struct TravelModePickerBar: View {
     }
 }
 
-/// Compact midpoint badge floating along the animated radial path from user to node
-struct LineETABadge: View {
-    let mode: TravelMode
-    let distanceMeters: Double
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: mode.iconName)
-                .font(.system(size: 9, weight: .bold))
-            Text(mode.formattedETA(distanceMeters: distanceMeters))
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.accentColor.opacity(0.35), lineWidth: 0.8))
-        .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
-        .foregroundStyle(.primary)
-    }
-}
-
 /// Rich, interactive node marker placed on the lo-fi real map canvas.
 /// Displays place name, fuse ring, and an optional toggleable top detail card
 /// with scheduled time, live time remaining, ETA, and distance in miles.
 struct NodeMarkerView: View {
-    let commitment: Commitment
+    let node: LocationNode
     let now: Date
     var userCoordinate: CLLocationCoordinate2D? = nil
     var showDetailCard: Bool = true
@@ -151,17 +133,22 @@ struct NodeMarkerView: View {
     private var distanceMeters: Double? {
         guard let userCoord = userCoordinate else { return nil }
         let userLoc = CLLocation(latitude: userCoord.latitude, longitude: userCoord.longitude)
-        let targetLoc = CLLocation(latitude: commitment.latitude, longitude: commitment.longitude)
+        let targetLoc = CLLocation(latitude: node.latitude, longitude: node.longitude)
         return userLoc.distance(from: targetLoc)
+    }
+
+    private var nearestTask: HabitTask? {
+        node.nearestUpcomingTask(after: now)
     }
 
     private var arrivalStatus: ArrivalStatus {
         guard let distance = distanceMeters else { return .onTime }
-        return commitment.travelMode.arrivalStatus(distanceMeters: distance, commitment: commitment, now: now)
+        let deadline = node.nextDeadline(after: now)
+        return node.travelMode.arrivalStatus(distanceMeters: distance, deadline: deadline, now: now)
     }
 
     private var isCompletedToday: Bool {
-        commitment.isCompletedForToday(asOf: now)
+        node.isAnyTaskCompletedToday(asOf: now)
     }
 
     var body: some View {
@@ -177,35 +164,28 @@ struct NodeMarkerView: View {
                             Text("Checked In")
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .foregroundStyle(.green)
-
-                            if commitment.streak > 0 {
-                                HStack(spacing: 2) {
-                                    Image(systemName: "flame.fill").font(.system(size: 9)).foregroundStyle(.orange)
-                                    Text("\(commitment.streak)").font(.system(size: 10, weight: .bold, design: .rounded))
-                                }
-                            }
                         }
-                    } else {
+                    } else if let task = nearestTask {
                         HStack(spacing: 5) {
                             // Scheduled deadline time
-                            Text(commitment.formattedDeadlineTime)
+                            Text(task.formattedDeadlineTime)
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
                                 .foregroundStyle(.primary)
 
                             // Time remaining countdown badge
-                            if let remaining = commitment.timeRemaining(asOf: now) {
-                                Text(commitment.formattedTimeRemaining(asOf: now))
+                            if let remaining = task.timeRemaining(asOf: now) {
+                                Text(task.formattedTimeRemaining(asOf: now))
                                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                                     .foregroundStyle(remaining < 600 ? .orange : .secondary)
                             }
 
                             // Streak counter
-                            if commitment.streak > 0 {
+                            if task.streak > 0 {
                                 HStack(spacing: 2) {
                                     Image(systemName: "flame.fill")
                                         .font(.system(size: 9))
                                         .foregroundStyle(.orange)
-                                    Text("\(commitment.streak)")
+                                    Text("\(task.streak)")
                                         .font(.system(size: 10, weight: .bold, design: .rounded))
                                         .foregroundStyle(.primary)
                                 }
@@ -213,21 +193,38 @@ struct NodeMarkerView: View {
                         }
 
                         // Real-time travel duration & distance in miles
-                        if let distance = distanceMeters, !commitment.isCurrentlyInside {
+                        if let distance = distanceMeters, !node.isCurrentlyInside {
                             HStack(spacing: 4) {
-                                Image(systemName: commitment.travelMode.iconName)
+                                Image(systemName: node.travelMode.iconName)
                                     .font(.system(size: 9, weight: .bold))
-                                Text(commitment.travelMode.formattedETA(distanceMeters: distance))
+                                Text(node.travelMode.formattedETA(distanceMeters: distance))
                                     .font(.system(size: 10, weight: .bold, design: .rounded))
                                 Text("·")
                                     .font(.system(size: 9))
-                                Text(Commitment.formatMiles(distanceMeters: distance))
+                                Text(TravelMode.formatMiles(distanceMeters: distance))
                                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(statusBackgroundColor, in: Capsule())
                             .foregroundStyle(statusForegroundColor)
+                        }
+                    } else {
+                        // Clean idle badge for nodes without tasks
+                        HStack(spacing: 4) {
+                            if let distance = distanceMeters {
+                                HStack(spacing: 3) {
+                                    Image(systemName: node.travelMode.iconName)
+                                        .font(.system(size: 9))
+                                    Text(TravelMode.formatMiles(distanceMeters: distance))
+                                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                                }
+                                .foregroundStyle(.secondary)
+                            } else {
+                                Text("Node Ready")
+                                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -241,7 +238,7 @@ struct NodeMarkerView: View {
 
             // Center Node with Fuse Ring & Presence Pulse
             ZStack {
-                if commitment.isCurrentlyInside {
+                if node.isCurrentlyInside {
                     Circle()
                         .stroke(Color.green.opacity(0.35), lineWidth: 2)
                         .frame(width: isPulsing ? 48 : 32, height: isPulsing ? 48 : 32)
@@ -249,12 +246,12 @@ struct NodeMarkerView: View {
                         .opacity(isPulsing ? 0 : 0.8)
                 }
 
-                FuseRingDot(commitment: commitment, now: now)
+                FuseRingDot(node: node, now: now)
             }
             .frame(width: 36, height: 36)
 
             // Location title
-            Text(commitment.locationName)
+            Text(node.name)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
@@ -263,7 +260,7 @@ struct NodeMarkerView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
         }
         .onAppear {
-            if commitment.isCurrentlyInside {
+            if node.isCurrentlyInside {
                 withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: false)) {
                     isPulsing = true
                 }
@@ -366,335 +363,5 @@ struct UserPresenceMarker: View {
                 pulse = true
             }
         }
-    }
-}
-
-/// Elaborate animated countdown timer with burning fuse arc and live ticking seconds
-struct ElaborateCountdownTimerView: View {
-    let commitment: Commitment
-    let now: Date
-
-    @State private var emberPulse = false
-
-    private var isDone: Bool {
-        commitment.isCompletedForToday(asOf: now)
-    }
-
-    private var timeRemaining: TimeInterval {
-        commitment.timeRemaining(asOf: now) ?? 0
-    }
-
-    private var progress: Double {
-        commitment.fuseProgress(asOf: now) ?? 0
-    }
-
-    private var hours: Int {
-        Int(timeRemaining) / 3600
-    }
-
-    private var minutes: Int {
-        (Int(timeRemaining) % 3600) / 60
-    }
-
-    private var seconds: Int {
-        Int(timeRemaining) % 60
-    }
-
-    var body: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                // Background Track
-                Circle()
-                    .stroke(Color.secondary.opacity(0.12), lineWidth: 10)
-                    .frame(width: 170, height: 170)
-
-                // Burning Fuse Arc or Completed Green Ring
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        isDone
-                            ? AnyShapeStyle(Color.green)
-                            : AnyShapeStyle(
-                                AngularGradient(
-                                    gradient: Gradient(colors: [
-                                        commitment.isCurrentlyInside ? .green : Color.accentColor,
-                                        .orange,
-                                        .red
-                                    ]),
-                                    center: .center,
-                                    startAngle: .degrees(-90),
-                                    endAngle: .degrees(270)
-                                )
-                            ),
-                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
-                    )
-                    .frame(width: 170, height: 170)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 1), value: progress)
-
-                // Burning Fuse Ember at Arc Tip (only when active and not completed)
-                if !isDone && progress > 0.01 && progress < 0.99 {
-                    let angle = Angle.degrees(-90 + progress * 360)
-                    let radius: CGFloat = 85
-                    let emberX = cos(angle.radians) * radius
-                    let emberY = sin(angle.radians) * radius
-
-                    ZStack {
-                        Circle()
-                            .fill(Color.orange.opacity(0.5))
-                            .frame(width: emberPulse ? 22 : 12, height: emberPulse ? 22 : 12)
-                        Circle()
-                            .fill(Color.yellow)
-                            .frame(width: 8, height: 8)
-                    }
-                    .offset(x: emberX, y: emberY)
-                }
-
-                // Digital Countdown or Completion Status Display
-                if isDone {
-                    VStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 36))
-                            .foregroundStyle(.green)
-                        Text("CHECKED IN")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(.green)
-                            .tracking(1)
-                        Text("Streak: \(commitment.streak) 🔥")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                    }
-                } else {
-                    VStack(spacing: 4) {
-                        Text("TIME REMAINING")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.secondary)
-                            .tracking(1.2)
-
-                        HStack(spacing: 2) {
-                            timeUnitView(value: hours, label: "H")
-                            Text(":").font(.system(.title3, design: .monospaced, weight: .bold)).foregroundStyle(.secondary)
-                            timeUnitView(value: minutes, label: "M")
-                            Text(":").font(.system(.title3, design: .monospaced, weight: .bold)).foregroundStyle(.secondary)
-                            timeUnitView(value: seconds, label: "S")
-                        }
-
-                        HStack(spacing: 6) {
-                            PresenceDot(isInside: commitment.isCurrentlyInside)
-                            Text(commitment.isCurrentlyInside ? "At Location" : "Away")
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .foregroundStyle(commitment.isCurrentlyInside ? .green : .secondary)
-                        }
-                        .padding(.top, 2)
-                    }
-                }
-            }
-            .frame(height: 190)
-        }
-        .padding(.vertical, 8)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                emberPulse = true
-            }
-        }
-    }
-
-    private func timeUnitView(value: Int, label: String) -> some View {
-        VStack(spacing: 0) {
-            Text(String(format: "%02d", value))
-                .font(.system(size: 22, weight: .bold, design: .monospaced))
-                .foregroundStyle(.primary)
-            Text(label)
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-/// Card calculating and recommending the latest time to leave for a destination
-struct TimeToLeaveCard: View {
-    let commitment: Commitment
-    let userCoordinate: CLLocationCoordinate2D?
-    let now: Date
-
-    private var distanceMeters: Double? {
-        guard let userCoord = userCoordinate else { return nil }
-        let userLoc = CLLocation(latitude: userCoord.latitude, longitude: userCoord.longitude)
-        let targetLoc = CLLocation(latitude: commitment.latitude, longitude: commitment.longitude)
-        return userLoc.distance(from: targetLoc)
-    }
-
-    private var travelSeconds: TimeInterval? {
-        guard let dist = distanceMeters else { return nil }
-        return commitment.travelMode.estimatedTravelTime(distanceMeters: dist)
-    }
-
-    private var latestDeparture: Date? {
-        commitment.latestDepartureTime(from: userCoordinate, asOf: now)
-    }
-
-    private var secondsUntilDeparture: TimeInterval? {
-        commitment.timeUntilDeparture(from: userCoordinate, asOf: now)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label("TIME TO LEAVE", systemImage: "clock.badge.exclamationmark")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color.accentColor)
-                    .tracking(1)
-
-                Spacer()
-
-                HStack(spacing: 4) {
-                    Image(systemName: commitment.travelMode.iconName)
-                    Text(commitment.travelMode.rawValue)
-                }
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Color.accentColor.opacity(0.12), in: Capsule())
-                .foregroundStyle(Color.accentColor)
-            }
-
-            if commitment.isCompletedForToday(asOf: now) {
-                HStack(spacing: 10) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.green)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Habit completed for today!")
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                        Text("Your streak is secured until the next scheduled occurrence.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 4)
-            } else if commitment.isCurrentlyInside {
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(.green)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("You're currently here!")
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                        Text("You can check in early below to complete this node today.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 4)
-            } else if let leaveTime = latestDeparture, let timeRemaining = secondsUntilDeparture {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .lastTextBaseline, spacing: 8) {
-                        Text(leaveTime.formatted(date: .omitted, time: .shortened))
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(timeRemaining < 0 ? .red : .primary)
-
-                        Text(timeRemaining >= 0 ? "Latest departure" : "You're running late!")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(timeRemaining < 0 ? .red : .secondary)
-                    }
-
-                    // Urgency Countdown Banner
-                    HStack(spacing: 8) {
-                        Image(systemName: departureStatusIcon(timeRemaining))
-                        Text(departureStatusText(timeRemaining))
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(departureStatusColor(timeRemaining).opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .foregroundStyle(departureStatusColor(timeRemaining))
-
-                    if let dist = distanceMeters, let travelSecs = travelSeconds {
-                        HStack {
-                            Text("\(commitment.travelMode.rawValue) ETA: \(Int(ceil(travelSecs / 60))) min")
-                            Text("·")
-                            Text("\(Commitment.formatMiles(distanceMeters: dist)) away")
-                        }
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
-                    }
-                }
-            } else {
-                Text("Enable location to calculate recommended departure time.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private func departureStatusText(_ seconds: TimeInterval) -> String {
-        if seconds < -60 {
-            let minsLate = Int(abs(seconds) / 60)
-            return "Depart immediately! (\(minsLate) min behind)"
-        } else if seconds < 0 {
-            return "Depart now to arrive on time!"
-        } else if seconds < 600 {
-            let minsLeft = Int(ceil(seconds / 60))
-            return "Leave in \(minsLeft) min · Get ready!"
-        } else {
-            let minsLeft = Int(ceil(seconds / 60))
-            let hours = minsLeft / 60
-            let remMins = minsLeft % 60
-            let durationStr = hours > 0 ? "\(hours)h \(remMins)m" : "\(minsLeft) min"
-            return "Leave in \(durationStr) · On schedule"
-        }
-    }
-
-    private func departureStatusIcon(_ seconds: TimeInterval) -> String {
-        if seconds < 0 {
-            return "exclamationmark.triangle.fill"
-        } else if seconds < 600 {
-            return "figure.walk.motion"
-        } else {
-            return "checkmark.circle.fill"
-        }
-    }
-
-    private func departureStatusColor(_ seconds: TimeInterval) -> Color {
-        if seconds < 0 {
-            return .red
-        } else if seconds < 600 {
-            return .orange
-        } else {
-            return .green
-        }
-    }
-}
-
-/// Renders a commitment's schedule as a short, glanceable string
-enum ScheduleFormatter {
-    static func summary(for commitment: Commitment) -> String {
-        let time = timeString(hour: commitment.deadlineHour, minute: commitment.deadlineMinute)
-
-        if commitment.isRecurring {
-            let symbols = Calendar.current.shortWeekdaySymbols
-            let names = commitment.weekdays.sorted().compactMap { weekday -> String? in
-                guard weekday >= 1, weekday <= symbols.count else { return nil }
-                return symbols[weekday - 1]
-            }
-            return "\(names.joined(separator: ", ")) · \(time)"
-        } else if let date = commitment.oneTimeDate {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            return "\(formatter.string(from: date)) · \(time)"
-        }
-        return time
-    }
-
-    private static func timeString(hour: Int, minute: Int) -> String {
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = minute
-        let date = Calendar.current.date(from: components) ?? Date()
-        return date.formatted(date: .omitted, time: .shortened)
     }
 }

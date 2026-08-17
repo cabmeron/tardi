@@ -2,7 +2,7 @@ import Foundation
 import CoreLocation
 import SwiftData
 
-/// Owns the CLLocationManager and keeps each active Commitment's
+/// Owns the CLLocationManager and keeps each LocationNode's
 /// `isCurrentlyInside` flag up to date via region monitoring.
 @MainActor
 final class LocationManager: NSObject, ObservableObject {
@@ -44,12 +44,12 @@ final class LocationManager: NSObject, ObservableObject {
         manager.stopUpdatingLocation()
     }
 
-    func startMonitoring(_ commitment: Commitment) {
+    func startMonitoring(_ node: LocationNode) {
         guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else { return }
         let region = CLCircularRegion(
-            center: CLLocationCoordinate2D(latitude: commitment.latitude, longitude: commitment.longitude),
-            radius: max(commitment.radius, 25),
-            identifier: commitment.regionIdentifier
+            center: CLLocationCoordinate2D(latitude: node.latitude, longitude: node.longitude),
+            radius: max(node.radius, 25),
+            identifier: node.regionIdentifier
         )
         region.notifyOnEntry = true
         region.notifyOnExit = true
@@ -57,30 +57,30 @@ final class LocationManager: NSObject, ObservableObject {
         manager.requestState(for: region)
     }
 
-    func stopMonitoring(_ commitment: Commitment) {
-        for region in manager.monitoredRegions where region.identifier == commitment.regionIdentifier {
+    func stopMonitoring(_ node: LocationNode) {
+        for region in manager.monitoredRegions where region.identifier == node.regionIdentifier {
             manager.stopMonitoring(for: region)
         }
     }
 
-    func resumeMonitoring(for commitments: [Commitment]) {
-        for commitment in commitments where commitment.isActive {
-            startMonitoring(commitment)
+    func resumeMonitoring(for nodes: [LocationNode]) {
+        for node in nodes {
+            startMonitoring(node)
         }
     }
 
-    private func commitment(for region: CLRegion, in context: ModelContext) -> Commitment? {
+    private func node(for region: CLRegion, in context: ModelContext) -> LocationNode? {
         let identifier = region.identifier
-        let descriptor = FetchDescriptor<Commitment>()
+        let descriptor = FetchDescriptor<LocationNode>()
         guard let all = try? context.fetch(descriptor) else { return nil }
         return all.first { $0.regionIdentifier == identifier }
     }
 
     private func updatePresence(isInside: Bool, region: CLRegion) {
         guard let modelContext else { return }
-        guard let commitment = commitment(for: region, in: modelContext) else { return }
-        commitment.isCurrentlyInside = isInside
-        commitment.lastLocationUpdate = Date()
+        guard let locationNode = node(for: region, in: modelContext) else { return }
+        locationNode.isCurrentlyInside = isInside
+        locationNode.lastLocationUpdate = Date()
         try? modelContext.save()
     }
 }

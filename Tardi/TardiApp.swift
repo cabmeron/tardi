@@ -7,7 +7,7 @@ struct TardiApp: App {
     let container: ModelContainer
 
     init() {
-        let schema = Schema([Commitment.self, CheckInRecord.self])
+        let schema = Schema([LocationNode.self, HabitTask.self, CheckInRecord.self])
         do {
             container = try ModelContainer(for: schema)
         } catch {
@@ -37,7 +37,7 @@ struct TardiApp: App {
                     NotificationManager.shared.requestAuthorization()
                     LocationManager.shared.requestAlwaysAuthorization()
 
-                    let descriptor = FetchDescriptor<Commitment>()
+                    let descriptor = FetchDescriptor<LocationNode>()
                     if let all = try? container.mainContext.fetch(descriptor) {
                         LocationManager.shared.resumeMonitoring(for: all)
                     }

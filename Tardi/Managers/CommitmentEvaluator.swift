@@ -1,27 +1,28 @@
 import Foundation
 import SwiftData
 
-/// Scores commitments whose deadline has passed based on the last geofence state.
+/// Scores habit tasks whose deadline has passed based on the LocationNode's geofence state.
 @MainActor
 enum CommitmentEvaluator {
     static func evaluateDueCommitments(in context: ModelContext, now: Date = Date()) {
-        let descriptor = FetchDescriptor<Commitment>(predicate: #Predicate { $0.isActive })
-        guard let commitments = try? context.fetch(descriptor) else { return }
+        let descriptor = FetchDescriptor<HabitTask>(predicate: #Predicate { $0.isActive })
+        guard let tasks = try? context.fetch(descriptor) else { return }
 
-        for commitment in commitments {
-            guard let deadline = commitment.pendingDeadline(asOf: now) else { continue }
+        for task in tasks {
+            guard let deadline = task.pendingDeadline(asOf: now) else { continue }
+            guard let node = task.node else { continue }
 
-            let success = commitment.isCurrentlyInside
-            commitment.streak = success ? commitment.streak + 1 : 0
-            commitment.lastEvaluatedDeadline = deadline
+            let success = node.isCurrentlyInside
+            task.streak = success ? task.streak + 1 : 0
+            task.lastEvaluatedDeadline = deadline
 
-            let record = CheckInRecord(date: deadline, success: success, commitment: commitment)
+            let record = CheckInRecord(date: deadline, success: success, task: task)
             context.insert(record)
 
-            NotificationManager.shared.sendResultNotification(for: commitment, success: success)
+            NotificationManager.shared.sendTaskResultNotification(for: task, success: success)
 
-            if let next = commitment.nextDeadline(after: now) {
-                NotificationManager.shared.scheduleDeadlineNotification(for: commitment, at: next)
+            if let next = task.nextDeadline(after: now) {
+                NotificationManager.shared.scheduleDeadlineNotification(for: task, at: next)
             }
         }
 

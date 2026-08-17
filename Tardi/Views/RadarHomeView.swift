@@ -4,28 +4,29 @@ import MapKit
 import CoreLocation
 
 /// The app's primary home screen: an interactive, lo-fi real map displaying
-/// custom habit nodes with custom naming, live countdown indicators,
+/// reusable location nodes with multi-task schedules, live countdown indicators,
 /// dynamic departure times, and animated multi-modal routes.
 struct RadarHomeView: View {
-    @Query(sort: \Commitment.createdAt, order: .reverse) private var commitments: [Commitment]
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \LocationNode.createdAt, order: .reverse) private var nodes: [LocationNode]
     @ObservedObject private var locationManager = LocationManager.shared
 
     @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
-    @State private var selectedCommitment: Commitment?
+    @State private var selectedNode: LocationNode?
     @State private var searchText = ""
     @State private var searchResults: [MKMapItem] = []
     @State private var draft: DraftLocation?
-    @State private var showingSchedule = false
+    @State private var showingConfigureSheet = false
 
     var body: some View {
         ZStack {
             LofiMapView(
                 position: $cameraPosition,
                 userCoordinate: locationManager.currentCoordinate,
-                commitments: commitments,
+                nodes: nodes,
                 draft: $draft,
-                onSelectCommitment: { commitment in
-                    selectedCommitment = commitment
+                onSelectNode: { node in
+                    selectedNode = node
                 },
                 onTapCoordinate: { coordinate in
                     placeDraft(at: coordinate, name: nil)
@@ -39,7 +40,7 @@ struct RadarHomeView: View {
                 Spacer()
             }
 
-            // Bottom Action Bar for Draft Node Placement & Radius Sizing
+            // Bottom Action Bar for Draft Node Placement & Instant Add
             VStack {
                 Spacer()
                 draftActionBar
@@ -51,20 +52,19 @@ struct RadarHomeView: View {
         .onDisappear {
             locationManager.stopUpdatingUserLocation()
         }
-        .sheet(item: $selectedCommitment) { commitment in
+        .sheet(item: $selectedNode) { node in
             CommitmentDetailView(
-                commitment: commitment,
+                node: node,
                 userCoordinate: locationManager.currentCoordinate
             )
         }
-        .sheet(isPresented: $showingSchedule) {
+        .sheet(isPresented: $showingConfigureSheet) {
             if let draft {
                 NewCommitmentView(
-                    location: PickedLocation(name: draft.name, coordinate: draft.coordinate),
-                    radius: draft.radius
-                ) {
-                    self.draft = nil
-                }
+                    coordinate: draft.coordinate,
+                    initialName: draft.name,
+                    initialRadius: draft.radius
+                )
             }
         }
     }
@@ -185,7 +185,7 @@ struct RadarHomeView: View {
                 VStack(spacing: 12) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("NEW HABIT NODE")
+                            Text("NEW LOCATION NODE")
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(Color.accentColor)
                                 .tracking(1)
@@ -249,15 +249,15 @@ struct RadarHomeView: View {
                     Divider()
                         .padding(.vertical, 2)
 
-                    // Action Buttons
-                    HStack(spacing: 12) {
+                    // Action Buttons: Quick Add vs Customize
+                    HStack(spacing: 10) {
                         Button {
                             withAnimation(.spring(response: 0.3)) {
                                 draft = nil
                             }
                         } label: {
                             Text("Cancel")
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.system(size: 14, weight: .semibold))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(Color(.secondarySystemGroupedBackground), in: Capsule())
@@ -265,19 +265,29 @@ struct RadarHomeView: View {
                         }
 
                         Button {
-                            showingSchedule = true
+                            quickSaveNode(currentDraft)
                         } label: {
-                            HStack(spacing: 6) {
-                                Text("Set Schedule")
-                                    .font(.system(size: 15, weight: .bold))
-                                Image(systemName: "arrow.right")
-                                    .font(.system(size: 13, weight: .bold))
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus")
+                                Text("Add Node")
                             }
+                            .font(.system(size: 14, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(Color.accentColor, in: Capsule())
                             .foregroundStyle(.white)
                         }
+
+                        Button {
+                            showingConfigureSheet = true
+                        } label: {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 15, weight: .bold))
+                                .frame(width: 44, height: 44)
+                                .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                                .foregroundStyle(.primary)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(16)
@@ -293,6 +303,23 @@ struct RadarHomeView: View {
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: draft)
+    }
+
+    private func quickSaveNode(_ draftLoc: DraftLocation) {
+        let node = LocationNode(
+            name: draftLoc.name,
+            latitude: draftLoc.coordinate.latitude,
+            longitude: draftLoc.coordinate.longitude,
+            radius: draftLoc.radius,
+            travelMode: .bicycle
+        )
+        modelContext.insert(node)
+        try? modelContext.save()
+        LocationManager.shared.startMonitoring(node)
+
+        withAnimation(.spring(response: 0.3)) {
+            draft = nil
+        }
     }
 
     private func placeDraft(at coordinate: CLLocationCoordinate2D, name: String?) {
