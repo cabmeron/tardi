@@ -20,6 +20,7 @@
 		746BE3676A5714D73029D49E /* LofiMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 582C7DB61C828E82E0BCDAFE /* LofiMapView.swift */; };
 		9518FBAE43D0DD47437FD85B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ECF1A034E1C3C3765B8DFA76 /* Assets.xcassets */; };
 		9B5DB4384DC2E5742E353EF2 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263628DB9D53ED61A63BF498 /* NotificationManager.swift */; };
+		9C1FD00C53770B86A3E8E586 /* TactileHardwareControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E26567A71D921D987B6AC3 /* TactileHardwareControls.swift */; };
 		B40D0A75F3B13C094C783C4C /* HabitTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B67F04BA022601B443452AC /* HabitTask.swift */; };
 		BDDDD054462EA7F1EE39647A /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9B6CC1A378E1663E269D4A2 /* LocationManager.swift */; };
 		D3406C7FFCA472009C401E3A /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62EE9E3433AC0909F23246F4 /* Components.swift */; };
@@ -34,6 +35,7 @@
 		30C3EFB46CF59AEF74C2D80A /* RadarGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarGeometry.swift; sourceTree = "<group>"; };
 		3AE196E6F804FB2CE13081A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3D8BD08007FE4DB59C61CDDD /* NewTaskSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewTaskSheet.swift; sourceTree = "<group>"; };
+		47E26567A71D921D987B6AC3 /* TactileHardwareControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TactileHardwareControls.swift; sourceTree = "<group>"; };
 		4E1E81E5006DC090B3CE18E0 /* CheckInRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInRecord.swift; sourceTree = "<group>"; };
 		582C7DB61C828E82E0BCDAFE /* LofiMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LofiMapView.swift; sourceTree = "<group>"; };
 		62EE9E3433AC0909F23246F4 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
@@ -88,6 +90,7 @@
 				30C3EFB46CF59AEF74C2D80A /* RadarGeometry.swift */,
 				79FCA59400369C8723E3457C /* RadarHomeView.swift */,
 				905A4483F29BDDAF43EC7B9A /* ScheduleControls.swift */,
+				47E26567A71D921D987B6AC3 /* TactileHardwareControls.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -202,6 +205,7 @@
 				E7C2518FCB5A2710D34AD66E /* RadarGeometry.swift in Sources */,
 				40759D7D46D9099079122F1E /* RadarHomeView.swift in Sources */,
 				58E3510F85BF6D8FA7533041 /* ScheduleControls.swift in Sources */,
+				9C1FD00C53770B86A3E8E586 /* TactileHardwareControls.swift in Sources */,
 				73217D2DB80C2C86034BC057 /* TardiApp.swift in Sources */,
 				0C1FB36CB8B5D1711C3D2B9A /* TravelMode.swift in Sources */,
 			);

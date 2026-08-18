@@ -65,16 +65,10 @@ struct NewCommitmentView: View {
 
                             Divider()
 
-                            HStack {
-                                Text("Transit Mode")
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Transit Mode Tuner")
                                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                Spacer()
-                                Picker("Travel Mode", selection: $selectedTravelMode) {
-                                    ForEach(TravelMode.allCases) { mode in
-                                        Label(mode.rawValue, systemImage: mode.iconName).tag(mode)
-                                    }
-                                }
-                                .pickerStyle(.menu)
+                                MultibandTransitTuner(selection: $selectedTravelMode)
                             }
                         }
                         .padding(14)
