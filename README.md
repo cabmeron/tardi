@@ -10,10 +10,10 @@
       <img src="https://github.com/user-attachments/assets/f98adb1d-dfc3-4b4d-b701-52c3850687a1" width="160" alt="iPhone Screenshot 1" />
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/91a1f964-1597-4324-96a9-89620100738b" width="160" alt="iPhone Screenshot 3" />
+      <img src="https://github.com/user-attachments/assets/6cf027d8-2a87-49eb-9693-bf66f521c5e4" width="160" alt="iPhone Screenshot 3" />
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/5f02594a-e2bb-4347-9fb6-97d265b0d4bd" width="160" alt="iPhone Screenshot 2" />
+      <img src="https://github.com/user-attachments/assets/733db640-7149-4c35-816c-ed98178d27d2" width="160" alt="iPhone Screenshot 2" />
     </td>
   </tr>
 </table>
@@ -29,3 +29,5 @@
 2. Select an iOS Simulator (e.g., iPhone 15/16 Pro) or your connected physical iPhone.
 3. Press **Run (⌘R)**.
 4. When prompted, allow Location and Notification permissions to enable geofencing and departure alerts.
+
+
