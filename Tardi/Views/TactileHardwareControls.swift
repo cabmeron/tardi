@@ -366,3 +366,105 @@ struct MultibandTransitTuner: View {
         }
     }
 }
+
+// MARK: - 5. Financial Pledge Stake Selector (Money at Risk)
+
+/// A tactical pledge stake selector allowing users to commit financial stakes
+/// ($0, $5, $10, $25, $50, $100) with glowing armed warning state and mechanical detent haptics.
+struct PledgeStakeSelector: View {
+    @Binding var pledgeAmount: Double
+    private let haptic = UIImpactFeedbackGenerator(style: .rigid)
+
+    private let presetAmounts: [Double] = [0, 5, 10, 25, 50, 100]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // Preset Buttons Row
+            HStack(spacing: 8) {
+                ForEach(presetAmounts, id: \.self) { amount in
+                    let isSelected = pledgeAmount == amount
+                    Button {
+                        if pledgeAmount != amount {
+                            haptic.impactOccurred()
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                                pledgeAmount = amount
+                            }
+                        }
+                    } label: {
+                        VStack(spacing: 2) {
+                            Text(amount == 0 ? "FREE" : "$\(Int(amount))")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundStyle(isSelected ? (amount > 0 ? Color.red : Color.primary) : Color.secondary)
+
+                            if amount == 10 {
+                                Text("POPULAR")
+                                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(isSelected ? Color.red : Color.secondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(isSelected ? (amount > 0 ? Color.red.opacity(0.12) : Color(.tertiarySystemGroupedBackground)) : Color(.tertiarySystemGroupedBackground).opacity(0.6))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(
+                                    isSelected ? (amount > 0 ? Color.red.opacity(0.6) : Color.primary.opacity(0.3)) : Color.clear,
+                                    lineWidth: 1.5
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // Tactical Armed Warning Banner
+            if pledgeAmount > 0 {
+                HStack(spacing: 10) {
+                    // Pulsing Red Warning LED
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                        .shadow(color: Color.red.opacity(0.8), radius: 4)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("STAKE ARMED: $\(Int(pledgeAmount)).00 AT RISK")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.red)
+                            .tracking(0.5)
+
+                        Text("Card charged automatically if not at location by deadline.")
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "creditcard.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.red.opacity(0.8))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.red.opacity(0.25), lineWidth: 1))
+                .transition(.scale(scale: 0.95).combined(with: .opacity))
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.shield")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                    Text("Casual Mode — No financial risk pledged for this task.")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+            }
+        }
+        .animation(.spring(response: 0.28, dampingFraction: 0.75), value: pledgeAmount)
+    }
+}
+

@@ -24,6 +24,7 @@ struct NewCommitmentView: View {
     @State private var isOneTime = false
     @State private var oneTimeDate = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
     @State private var deadlineTime = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var pledgeAmount: Double = 0.0
 
     init(coordinate: CLLocationCoordinate2D, initialName: String = "Pinned Location", initialRadius: Double = 100) {
         self.coordinate = coordinate
@@ -102,6 +103,14 @@ struct NewCommitmentView: View {
 
                                 SolarDaylightArcPicker(time: $deadlineTime)
                                     .padding(.vertical, 4)
+
+                                Divider()
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Financial Stake (Optional)")
+                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    PledgeStakeSelector(pledgeAmount: $pledgeAmount)
+                                }
                             }
                             .padding(14)
                             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -162,6 +171,7 @@ struct NewCommitmentView: View {
                 deadlineHour: hour,
                 deadlineMinute: minute,
                 oneTimeDate: isOneTime ? oneTimeDate : nil,
+                pledgeAmount: pledgeAmount,
                 node: node
             )
             node.tasks.append(task)

@@ -4,6 +4,7 @@ import CoreLocation
 
 /// A scheduled task, habit, or arrival commitment attached to a LocationNode.
 /// Multiple tasks can be assigned to the same node to reuse locations.
+/// Supports financial pledge stakes where money is charged if the deadline is missed.
 @Model
 final class HabitTask {
     var id: UUID
@@ -20,6 +21,12 @@ final class HabitTask {
     var lastEvaluatedDeadline: Date?
     var createdAt: Date
 
+    // Financial Pledge Stake
+    var pledgeAmount: Double
+    var isPledged: Bool
+    var forfeitedCount: Int
+    var totalForfeitedAmount: Double
+
     var node: LocationNode?
 
     @Relationship(deleteRule: .cascade, inverse: \CheckInRecord.task)
@@ -31,6 +38,7 @@ final class HabitTask {
         deadlineHour: Int,
         deadlineMinute: Int,
         oneTimeDate: Date? = nil,
+        pledgeAmount: Double = 0.0,
         node: LocationNode? = nil
     ) {
         self.id = UUID()
@@ -43,10 +51,19 @@ final class HabitTask {
         self.isActive = true
         self.lastEvaluatedDeadline = nil
         self.createdAt = Date()
+        self.pledgeAmount = pledgeAmount
+        self.isPledged = pledgeAmount > 0
+        self.forfeitedCount = 0
+        self.totalForfeitedAmount = 0.0
         self.node = node
     }
 
     var isRecurring: Bool { !weekdays.isEmpty }
+
+    var formattedPledgeAmount: String {
+        guard pledgeAmount > 0 else { return "No Stake" }
+        return String(format: "$%.0f", pledgeAmount)
+    }
 
     var formattedDeadlineTime: String {
         var components = DateComponents()

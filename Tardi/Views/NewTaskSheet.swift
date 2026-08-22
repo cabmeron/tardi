@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// A sheet to configure and attach a new scheduled habit task to a LocationNode
-/// featuring the SolarDaylightArcPicker and ActiveDaysSwitchboardPicker.
+/// featuring the SolarDaylightArcPicker, ActiveDaysSwitchboardPicker, and PledgeStakeSelector.
 struct NewTaskSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -13,6 +13,7 @@ struct NewTaskSheet: View {
     @State private var isOneTime = false
     @State private var oneTimeDate = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
     @State private var deadlineTime = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var pledgeAmount: Double = 0.0
 
     var body: some View {
         NavigationStack {
@@ -55,15 +56,27 @@ struct NewTaskSheet: View {
                     .padding(14)
                     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                    // 4. Primary Add Button
+                    // 4. Financial Pledge Stake (Money at Risk)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("FINANCIAL PLEDGE STAKE")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .tracking(1)
+
+                        PledgeStakeSelector(pledgeAmount: $pledgeAmount)
+                            .padding(14)
+                            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+
+                    // 5. Primary Add Button
                     Button(action: saveTask) {
-                        Text("Add Task to \(node.name)")
+                        Text(pledgeAmount > 0 ? "Arm Task ($\(Int(pledgeAmount)) Stake)" : "Add Task to \(node.name)")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 15)
-                            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .background(pledgeAmount > 0 ? Color.red : Color.accentColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .foregroundStyle(.white)
-                            .shadow(color: Color.accentColor.opacity(0.3), radius: 8, y: 3)
+                            .shadow(color: (pledgeAmount > 0 ? Color.red : Color.accentColor).opacity(0.3), radius: 8, y: 3)
                     }
                     .buttonStyle(.plain)
                     .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (!isOneTime && selectedWeekdays.isEmpty))
@@ -95,6 +108,7 @@ struct NewTaskSheet: View {
             deadlineHour: hour,
             deadlineMinute: minute,
             oneTimeDate: isOneTime ? oneTimeDate : nil,
+            pledgeAmount: pledgeAmount,
             node: node
         )
 

@@ -49,8 +49,13 @@ final class NotificationManager: ObservableObject {
             content.title = "Check-in Passed! 🔥"
             content.body = "You were at \(nodeName) for \(task.title). Streak: \(task.streak)!"
         } else {
-            content.title = "Check-in Missed 🚨"
-            content.body = "You were not at \(nodeName) for \(task.title). Streak reset to 0."
+            if task.isPledged && task.pledgeAmount > 0 {
+                content.title = "🚨 $\(Int(task.pledgeAmount)).00 Charged: Missed Check-in"
+                content.body = "You were not at \(nodeName) for \(task.title). Your $\(Int(task.pledgeAmount)) stake was forfeited."
+            } else {
+                content.title = "Check-in Missed 🚨"
+                content.body = "You were not at \(nodeName) for \(task.title). Streak reset to 0."
+            }
         }
         content.sound = .default
 

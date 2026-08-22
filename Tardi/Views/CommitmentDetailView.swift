@@ -4,7 +4,7 @@ import SwiftData
 import UIKit
 
 /// Presented as a sheet when a location node is tapped on the map.
-/// Reorganized into the "Single Monolith Cockpit" architecture:
+/// Reorganized into the "Single Monolith Cockpit" architecture with financial pledge stakes:
 /// Minimal text, zero verbose card grids, embedded telemetry inside the hero countdown ring,
 /// spring-loaded check-in plunger, and Dieter Rams multiband transit tuner.
 struct CommitmentDetailView: View {
@@ -32,8 +32,9 @@ struct CommitmentDetailView: View {
 
                         // 3. Heavy Industrial Plunger Check-In Button (If task pending)
                         if let nearest = node.nearestUpcomingTask(after: context.date), !nearest.isCompletedForToday(asOf: context.date) {
+                            let stakeText = nearest.isPledged && nearest.pledgeAmount > 0 ? " · $\(Int(nearest.pledgeAmount)) AT RISK" : ""
                             IndustrialPlungerButton(
-                                title: "HOLD TO CHECK IN (\(nearest.title.uppercased()))",
+                                title: "HOLD TO CHECK IN (\(nearest.title.uppercased())\(stakeText))",
                                 isCompleted: nearest.isCompletedForToday(asOf: context.date)
                             ) {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
@@ -42,7 +43,7 @@ struct CommitmentDetailView: View {
                             }
                         }
 
-                        // 4. Tasks at this Location Section
+                        // 4. Tasks at this Location Section (with Stake Badges)
                         tasksSection(now: context.date)
 
                         // 5. Multiband Radio Transit Tuner
@@ -346,7 +347,7 @@ struct CommitmentDetailView: View {
         let isDone = task.isCompletedForToday(asOf: now)
 
         return HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(task.title)
                         .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -361,11 +362,30 @@ struct CommitmentDetailView: View {
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
                         }
                     }
+
+                    if task.isPledged && task.pledgeAmount > 0 {
+                        Text("$\(Int(task.pledgeAmount))")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1.5)
+                            .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                            .foregroundStyle(.red)
+                    }
                 }
 
-                Text(task.scheduleSummary)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Text(task.scheduleSummary)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+
+                    if task.totalForfeitedAmount > 0 {
+                        Text("•")
+                            .foregroundStyle(.secondary)
+                        Text("$\(Int(task.totalForfeitedAmount)) lost")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.red.opacity(0.85))
+                    }
+                }
             }
 
             Spacer()

@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 
 /// Scores habit tasks whose deadline has passed based on the LocationNode's geofence state.
+/// If a financial pledge is armed and the deadline is missed, the stake is automatically forfeited.
 @MainActor
 enum CommitmentEvaluator {
     static func evaluateDueCommitments(in context: ModelContext, now: Date = Date()) {
@@ -15,6 +16,11 @@ enum CommitmentEvaluator {
             let success = node.isCurrentlyInside
             task.streak = success ? task.streak + 1 : 0
             task.lastEvaluatedDeadline = deadline
+
+            if !success && task.isPledged && task.pledgeAmount > 0 {
+                task.forfeitedCount += 1
+                task.totalForfeitedAmount += task.pledgeAmount
+            }
 
             let record = CheckInRecord(date: deadline, success: success, task: task)
             context.insert(record)

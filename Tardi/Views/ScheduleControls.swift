@@ -1,21 +1,19 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Concept 4: Solar Daylight Arc Picker (Time of Day)
+// MARK: - Concept 4: Tactile Circadian Time Slider
 
-/// An architectural, circadian daylight arc representing the 24-hour cycle from sunrise
-/// to sunset and night, featuring a draggable celestial indicator, stepper micro-nudges,
-/// and ambient daylight lighting.
+/// An architectural, circadian time slider representing the 24-hour cycle from sunrise
+/// to night with buttery smooth 120 FPS dragging, bounded geometry that never overflows its card,
+/// and instant haptic detents.
 struct SolarDaylightArcPicker: View {
     @Binding var time: Date
 
     @State private var isDragging = false
+    @State private var dragProgress: Double? = nil
     @State private var previousNotch: Int = -1
 
-    private let arcWidth: CGFloat = 260
-    private let arcHeight: CGFloat = 135
     private let haptic = UIImpactFeedbackGenerator(style: .light)
-
     private var calendar: Calendar { .current }
 
     private var totalMinutes: Int {
@@ -26,196 +24,146 @@ struct SolarDaylightArcPicker: View {
 
     /// Progress across the 24-hour day [0, 1]
     private var dayProgress: Double {
-        Double(totalMinutes) / 1440.0
+        dragProgress ?? (Double(totalMinutes) / 1440.0)
     }
 
-    private var isDaytime: Bool {
-        let hour = calendar.component(.hour, from: time)
-        return hour >= 6 && hour < 19
+    private var hour: Int {
+        calendar.component(.hour, from: time)
+    }
+
+    private var celestialColor: Color {
+        switch hour {
+        case 5..<8:  return .orange
+        case 8..<17: return .yellow
+        case 17..<20: return .orange
+        default:     return .indigo
+        }
     }
 
     var body: some View {
         VStack(spacing: 16) {
-            // 1. Solar Arc & Celestial Knob
-            ZStack {
-                // Arc Background Track
-                SolarArcShape()
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.orange.opacity(0.4),
-                                Color.yellow.opacity(0.7),
-                                Color.orange.opacity(0.8),
-                                Color.indigo.opacity(0.6),
-                                Color.purple.opacity(0.4)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
-                        style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                    )
-                    .frame(width: arcWidth, height: arcHeight)
+            // 1. Prominent Centered Digital Time
+            Text(time.formatted(date: .omitted, time: .shortened))
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
 
-                // Reference Celestial Icons Along Arc
-                celestialMilestoneIcons
+            // 2. Silky Smooth Bounded Slider Track
+            GeometryReader { geometry in
+                let totalWidth = geometry.size.width
+                let trackHeight: CGFloat = 12
+                let knobSize: CGFloat = 30
+                let usableWidth = max(totalWidth - knobSize, 1.0)
+                let knobX = CGFloat(dayProgress) * usableWidth
 
-                // Draggable Sun / Moon Knob
-                knobView
-            }
-            .frame(width: arcWidth + 30, height: arcHeight + 30)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        handleDrag(at: value.location)
+                ZStack(alignment: .leading) {
+                    // Track Background (Circadian 24h Gradient)
+                    RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
+                        .fill(Color(.tertiarySystemGroupedBackground))
+                        .frame(height: trackHeight)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
+                                .stroke(Color.secondary.opacity(0.15), lineWidth: 0.8)
+                        )
+
+                    // Active Glowing Fill Bar
+                    RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.indigo.opacity(0.7),
+                                    Color.orange.opacity(0.85),
+                                    Color.yellow.opacity(0.9),
+                                    Color.orange.opacity(0.85),
+                                    Color.purple.opacity(0.8)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(knobX + knobSize / 2, trackHeight), height: trackHeight)
+
+                    // Hour Tick Markers
+                    HStack(spacing: 0) {
+                        ForEach(0..<5) { tick in
+                            if tick > 0 {
+                                Spacer()
+                            }
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.25))
+                                .frame(width: 1.5, height: tick == 0 || tick == 4 ? 6 : 4)
+                        }
                     }
-                    .onEnded { _ in
-                        isDragging = false
-                        previousNotch = -1
+                    .padding(.horizontal, knobSize / 2)
+                    .frame(height: trackHeight)
+
+                    // Tactile Draggable Knob
+                    ZStack {
+                        // Ambient Glowing Halo
+                        Circle()
+                            .fill(celestialColor.opacity(isDragging ? 0.45 : 0.2))
+                            .frame(width: isDragging ? 42 : 32, height: isDragging ? 42 : 32)
+                            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isDragging)
+
+                        // Solid White Bezel
+                        Circle()
+                            .fill(Color(.secondarySystemGroupedBackground))
+                            .frame(width: knobSize, height: knobSize)
+                            .overlay(
+                                Circle()
+                                    .stroke(celestialColor.opacity(0.9), lineWidth: 2)
+                            )
+                            .shadow(color: Color.black.opacity(0.18), radius: 4, y: 2)
+
+                        // Inner Dynamic Core Dot
+                        Circle()
+                            .fill(celestialColor)
+                            .frame(width: 10, height: 10)
                     }
-            )
-
-            // 2. Digital Readout with Symmetrical Stepper Buttons
-            HStack(spacing: 16) {
-                // -5m Nudge
-                Button {
-                    stepMinutes(-5)
-                } label: {
-                    Text("-5m")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.secondary.opacity(0.18), lineWidth: 0.8))
-                        .foregroundStyle(.primary)
+                    .offset(x: knobX)
                 }
-                .buttonStyle(.plain)
-
-                // Large Centered Digital Readout
-                VStack(spacing: 2) {
-                    Text(time.formatted(date: .omitted, time: .shortened))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-
-                    HStack(spacing: 4) {
-                        Image(systemName: isDaytime ? "sun.max.fill" : "moon.stars.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(isDaytime ? .orange : .indigo)
-                        Text(timeOfDayLabel)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.secondary)
-                            .tracking(0.8)
-                    }
-                }
-                .frame(minWidth: 140)
-
-                // +5m Nudge
-                Button {
-                    stepMinutes(5)
-                } label: {
-                    Text("+5m")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.secondary.opacity(0.18), lineWidth: 0.8))
-                        .foregroundStyle(.primary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.vertical, 8)
-    }
-
-    // MARK: - Subviews
-
-    private var celestialMilestoneIcons: some View {
-        ZStack {
-            // Sunrise (6 AM -> progress ~0.25)
-            let pSunrise = pointOnArc(progress: 0.25)
-            Image(systemName: "sunrise.fill")
-                .font(.system(size: 12))
-                .foregroundStyle(.orange)
-                .position(x: pSunrise.x - 14, y: pSunrise.y + 16)
-
-            // Midday (12 PM -> progress 0.50)
-            let pNoon = pointOnArc(progress: 0.50)
-            Image(systemName: "sun.max.fill")
-                .font(.system(size: 14))
-                .foregroundStyle(.yellow)
-                .position(x: pNoon.x, y: pNoon.y - 18)
-
-            // Sunset (6 PM -> progress ~0.75)
-            let pSunset = pointOnArc(progress: 0.75)
-            Image(systemName: "sunset.fill")
-                .font(.system(size: 12))
-                .foregroundStyle(.orange)
-                .position(x: pSunset.x + 14, y: pSunset.y + 16)
-
-            // Night Moon (Midnight -> progress 1.0)
-            let pNight = pointOnArc(progress: 0.98)
-            Image(systemName: "moon.fill")
-                .font(.system(size: 11))
-                .foregroundStyle(.indigo)
-                .position(x: pNight.x + 18, y: pNight.y + 14)
-        }
-    }
-
-    private var knobView: some View {
-        let point = pointOnArc(progress: dayProgress)
-
-        return ZStack {
-            // Ambient glowing halo
-            Circle()
-                .fill(isDaytime ? Color.yellow.opacity(0.35) : Color.indigo.opacity(0.35))
-                .frame(width: isDragging ? 32 : 24, height: isDragging ? 32 : 24)
-
-            // Solid celestial indicator
-            Circle()
-                .fill(isDaytime ? Color.yellow : Color.white)
-                .frame(width: 16, height: 16)
-                .overlay(
-                    Image(systemName: isDaytime ? "sun.max.fill" : "moon.fill")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(isDaytime ? Color.orange : Color.indigo)
+                .frame(height: 44)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            isDragging = true
+                            let progress = max(min(Double(value.location.x - (knobSize / 2)) / Double(usableWidth), 1.0), 0.0)
+                            dragProgress = progress
+                            updateTime(from: progress)
+                        }
+                        .onEnded { _ in
+                            isDragging = false
+                            dragProgress = nil
+                            previousNotch = -1
+                        }
                 )
-                .shadow(color: (isDaytime ? Color.yellow : Color.indigo).opacity(0.6), radius: 6, y: 1)
+            }
+            .frame(height: 44)
+
+            // 3. Time Labels (12 AM · 6 AM · 12 PM · 6 PM · 12 AM)
+            HStack {
+                Text("12 AM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                Spacer()
+                Text("6 AM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                Spacer()
+                Text("12 PM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                Spacer()
+                Text("6 PM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                Spacer()
+                Text("12 AM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 2)
         }
-        .position(point)
-        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: dayProgress)
+        .padding(.vertical, 10)
     }
 
-    private var timeOfDayLabel: String {
-        let hour = calendar.component(.hour, from: time)
-        switch hour {
-        case 5..<12: return "MORNING"
-        case 12..<17: return "AFTERNOON"
-        case 17..<21: return "EVENING"
-        default: return "NIGHT"
-        }
-    }
-
-    // MARK: - Geometry & Drag Math
-
-    /// Calculates (x, y) along the parabolic daylight arch
-    private func pointOnArc(progress: Double) -> CGPoint {
-        let p = max(min(progress, 1.0), 0.0)
-        let x = 15 + p * arcWidth
-        let normalizedX = (p - 0.5) * 2.0
-        let y = 20 + (normalizedX * normalizedX) * (arcHeight - 20)
-        return CGPoint(x: x, y: y)
-    }
-
-    private func handleDrag(at point: CGPoint) {
-        let adjustedX = point.x - 15
-        let rawProgress = max(min(adjustedX / arcWidth, 1.0), 0.0)
-
-        let totalMins = Int(rawProgress * 1440.0)
+    private func updateTime(from progress: Double) {
+        let totalMins = Int(progress * 1440.0)
         let snappedMins = (Int(round(Double(totalMins) / 5.0)) * 5) % 1440
         let notchIndex = snappedMins / 5
 
         if notchIndex != previousNotch {
-            haptic.impactOccurred()
+            haptic.impactOccurred(intensity: 0.6)
             previousNotch = notchIndex
         }
 
@@ -226,16 +174,6 @@ struct SolarDaylightArcPicker: View {
 
         if let newDate = calendar.date(from: components) {
             time = newDate
-        }
-        isDragging = true
-    }
-
-    private func stepMinutes(_ step: Int) {
-        haptic.impactOccurred()
-        if let newDate = calendar.date(byAdding: .minute, value: step, to: time) {
-            withAnimation(.spring(response: 0.25)) {
-                time = newDate
-            }
         }
     }
 }
