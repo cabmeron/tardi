@@ -16,6 +16,7 @@ struct CommitmentDetailView: View {
     @State private var isEditingName = false
     @State private var editedName = ""
     @State private var showingAddTaskSheet = false
+    @State private var showingVaultSheet = false
 
     private let hapticFeedback = UINotificationFeedbackGenerator()
 
@@ -61,6 +62,19 @@ struct CommitmentDetailView: View {
             .background(Color(.systemGroupedBackground))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingVaultSheet = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "creditcard.fill")
+                            Text("Vault")
+                        }
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.accentColor)
+                    }
+                }
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                         .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -68,6 +82,9 @@ struct CommitmentDetailView: View {
             }
             .sheet(isPresented: $showingAddTaskSheet) {
                 NewTaskSheet(node: node)
+            }
+            .sheet(isPresented: $showingVaultSheet) {
+                VaultArmingView()
             }
         }
     }

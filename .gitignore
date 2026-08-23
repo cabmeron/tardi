@@ -1,0 +1,30 @@
+# Environment variables
+.env
+*.env
+.env.*
+!.env.example
+
+# Go binary and build artifacts
+tardi-backend/tardi-backend
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Xcode and Swift build artifacts
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
