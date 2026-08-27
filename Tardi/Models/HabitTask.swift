@@ -24,6 +24,7 @@ final class HabitTask {
     // Financial Pledge Stake
     var pledgeAmount: Double
     var isPledged: Bool
+    var activePaymentIntentId: String?
     var forfeitedCount: Int
     var totalForfeitedAmount: Double
 
@@ -39,6 +40,7 @@ final class HabitTask {
         deadlineMinute: Int,
         oneTimeDate: Date? = nil,
         pledgeAmount: Double = 0.0,
+        activePaymentIntentId: String? = nil,
         node: LocationNode? = nil
     ) {
         self.id = UUID()
@@ -53,6 +55,7 @@ final class HabitTask {
         self.createdAt = Date()
         self.pledgeAmount = pledgeAmount
         self.isPledged = pledgeAmount > 0
+        self.activePaymentIntentId = activePaymentIntentId
         self.forfeitedCount = 0
         self.totalForfeitedAmount = 0.0
         self.node = node
@@ -65,29 +68,42 @@ final class HabitTask {
         return String(format: "$%.0f", pledgeAmount)
     }
 
+    var daylightPhaseDescription: String {
+        switch deadlineHour {
+        case 5..<9:   return "Dawn"
+        case 9..<12:  return "Morning"
+        case 12..<15: return "Midday"
+        case 15..<18: return "Afternoon"
+        case 18..<21: return "Dusk"
+        default:      return "Night"
+        }
+    }
+
     var formattedDeadlineTime: String {
-        var components = DateComponents()
-        components.hour = deadlineHour
-        components.minute = deadlineMinute
-        let date = Calendar.current.date(from: components) ?? Date()
-        return date.formatted(date: .omitted, time: .shortened)
+        daylightPhaseDescription
     }
 
     var scheduleSummary: String {
-        let time = formattedDeadlineTime
+        let phase = daylightPhaseDescription
         if isRecurring {
             let symbols = Calendar.current.shortWeekdaySymbols
             let names = weekdays.sorted().compactMap { weekday -> String? in
                 guard weekday >= 1, weekday <= symbols.count else { return nil }
                 return symbols[weekday - 1]
             }
-            return "\(names.joined(separator: ", ")) · \(time)"
+            if weekdays.count == 7 {
+                return "Daily · \(phase)"
+            } else if weekdays == [2, 3, 4, 5, 6] {
+                return "Weekdays · \(phase)"
+            } else {
+                return "\(names.joined(separator: ", ")) · \(phase)"
+            }
         } else if let date = oneTimeDate {
             let formatter = DateFormatter()
             formatter.dateFormat = "MMM d"
-            return "\(formatter.string(from: date)) · \(time)"
+            return "\(formatter.string(from: date)) · \(phase)"
         }
-        return time
+        return phase
     }
 
     /// The most recent deadline at or before `referenceDate` that hasn't been scored yet

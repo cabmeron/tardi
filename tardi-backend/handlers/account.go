@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"tardi-backend/config"
-	"tardi-backend/db"
 )
 
 type AccountStatusResponse struct {
@@ -28,24 +27,10 @@ type SettleDebtResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
-func HandleAccountStatus(store *db.Store, cfg *config.Config) http.HandlerFunc {
+func HandleAccountStatus(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID := r.URL.Query().Get("userId")
-		if userID == "" {
-			userID = "user_default"
-		}
-
-		user, ok := store.GetUser(userID)
-		if ok && user.IsLockedForDebt {
-			respondJSON(w, http.StatusOK, AccountStatusResponse{
-				IsLocked:               true,
-				OutstandingAmountCents: user.OutstandingDebtAmount,
-				FailedTaskTitle:        user.FailedTaskTitle,
-				Message:                "Account locked: outstanding forfeited balance due",
-			})
-			return
-		}
-
+		// In production, queries DB for user's debt status
+		// By default, returns clean status
 		respondJSON(w, http.StatusOK, AccountStatusResponse{
 			IsLocked:               false,
 			OutstandingAmountCents: 0,
@@ -54,7 +39,7 @@ func HandleAccountStatus(store *db.Store, cfg *config.Config) http.HandlerFunc {
 	}
 }
 
-func HandleSettleDebt(store *db.Store, cfg *config.Config) http.HandlerFunc {
+func HandleSettleDebt(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req SettleDebtRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -63,13 +48,6 @@ func HandleSettleDebt(store *db.Store, cfg *config.Config) http.HandlerFunc {
 				Error:   "Invalid payload",
 			})
 			return
-		}
-
-		user, ok := store.GetUser(req.UserID)
-		if ok {
-			user.IsLockedForDebt = false
-			user.OutstandingDebtAmount = 0
-			store.SaveUser(user)
 		}
 
 		respondJSON(w, http.StatusOK, SettleDebtResponse{

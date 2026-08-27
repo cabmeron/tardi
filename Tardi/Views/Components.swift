@@ -34,43 +34,63 @@ struct PresenceDot: View {
     }
 }
 
-/// A location node's map marker: a dot wrapped in a "fuse" ring that burns down
-/// as the nearest upcoming task deadline approaches.
+/// A location node's map marker: a clean lined circle when unassigned,
+/// or a physical burning fuse ring indicator when a task is armed.
 struct FuseRingDot: View {
     let node: LocationNode
     let now: Date
 
     var body: some View {
         let isDone = node.isAnyTaskCompletedToday(asOf: now)
-        let hasActiveTasks = !node.activeTasks.isEmpty
-        let color: Color = isDone ? .green : (node.isCurrentlyInside ? .green : (hasActiveTasks ? Color.accentColor : Color.secondary))
+        let isArmed = !node.activeTasks.isEmpty && !isDone
         let progress = node.fuseProgress(asOf: now) ?? 0
 
         ZStack {
-            Circle()
-                .stroke(Color.secondary.opacity(0.2), lineWidth: 3)
-                .frame(width: 34, height: 34)
-
-            if hasActiveTasks {
+            if isArmed {
+                // 1. Burnt ash track (braided dashed circle)
                 Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .stroke(Color.secondary.opacity(0.18), style: StrokeStyle(lineWidth: 2.5, dash: [2, 2]))
+                    .frame(width: 34, height: 34)
+
+                // 2. Monochrome physical fuse cord
+                Circle()
+                    .trim(from: 0, to: CGFloat(progress))
+                    .stroke(Color.primary.opacity(0.85), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                     .frame(width: 34, height: 34)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 1), value: progress)
-            }
 
-            if isDone {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 16, height: 16)
-                    .background(Color.green, in: Circle())
-            } else {
+                // 3. Burning Ember Head
+                if progress > 0.02 && progress < 0.98 {
+                    let angleDeg = -90.0 + (progress * 360.0)
+                    let rad = angleDeg * .pi / 180.0
+                    let r: CGFloat = 17.0
+                    let x = CGFloat(Darwin.cos(rad)) * r
+                    let y = CGFloat(Darwin.sin(rad)) * r
+
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 4.5, height: 4.5)
+                        .shadow(color: Color.orange, radius: 2)
+                        .overlay(Circle().fill(Color.white).frame(width: 2, height: 2))
+                        .offset(x: x, y: y)
+                }
+
+                // Center core dot
                 Circle()
-                    .fill(color)
-                    .frame(width: 13, height: 13)
+                    .fill(Color.primary)
+                    .frame(width: 12, height: 12)
                     .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
+            } else {
+                // Default State: Clean lined circle with center dot (no checks, no failures)
+                Circle()
+                    .stroke(Color.secondary.opacity(0.35), lineWidth: 1.5)
+                    .frame(width: 28, height: 28)
+
+                Circle()
+                    .fill(Color.secondary.opacity(0.7))
+                    .frame(width: 10, height: 10)
+                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
             }
         }
         .contentShape(Circle())
@@ -119,129 +139,57 @@ struct TravelModePickerBar: View {
     }
 }
 
-/// Rich, interactive node marker placed on the lo-fi real map canvas.
-/// Displays place name, fuse ring, and an optional toggleable top detail card
-/// with scheduled time, live time remaining, ETA, and distance in miles.
+// MARK: - Map Node Markers
+
+/// A high-visibility interactive location marker for the real map.
+/// Displays a clean lined circle if idle/unassigned, or a physical burning fuse indicator when armed.
 struct NodeMarkerView: View {
     let node: LocationNode
     let now: Date
-    var userCoordinate: CLLocationCoordinate2D? = nil
-    var showDetailCard: Bool = true
+    let userCoordinate: CLLocationCoordinate2D?
+    let showDetailCard: Bool
 
     @State private var isPulsing = false
 
     private var distanceMeters: Double? {
-        guard let userCoord = userCoordinate else { return nil }
-        let userLoc = CLLocation(latitude: userCoord.latitude, longitude: userCoord.longitude)
-        let targetLoc = CLLocation(latitude: node.latitude, longitude: node.longitude)
-        return userLoc.distance(from: targetLoc)
+        guard let userCoordinate else { return nil }
+        let userLoc = CLLocation(latitude: userCoordinate.latitude, longitude: userCoordinate.longitude)
+        let nodeLoc = CLLocation(latitude: node.latitude, longitude: node.longitude)
+        return userLoc.distance(from: nodeLoc)
     }
 
-    private var nearestTask: HabitTask? {
-        node.nearestUpcomingTask(after: now)
-    }
-
-    private var arrivalStatus: ArrivalStatus {
-        guard let distance = distanceMeters else { return .onTime }
-        let deadline = node.nextDeadline(after: now)
-        return node.travelMode.arrivalStatus(distanceMeters: distance, deadline: deadline, now: now)
-    }
-
-    private var isCompletedToday: Bool {
+    private var isDone: Bool {
         node.isAnyTaskCompletedToday(asOf: now)
     }
 
+    private var isArmed: Bool {
+        !node.activeTasks.isEmpty && !isDone
+    }
+
     var body: some View {
-        VStack(spacing: 4) {
-            // Optional toggleable label pill floating above node
-            if showDetailCard {
-                VStack(spacing: 3) {
-                    if isCompletedToday {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.green)
-                            Text("Checked In")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(.green)
-                        }
-                    } else if let task = nearestTask {
-                        HStack(spacing: 5) {
-                            // Scheduled deadline time
-                            Text(task.formattedDeadlineTime)
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
-
-                            // Time remaining countdown badge
-                            if let remaining = task.timeRemaining(asOf: now) {
-                                Text(task.formattedTimeRemaining(asOf: now))
-                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(remaining < 600 ? .orange : .secondary)
-                            }
-
-                            // Streak counter
-                            if task.streak > 0 {
-                                HStack(spacing: 2) {
-                                    Image(systemName: "flame.fill")
-                                        .font(.system(size: 9))
-                                        .foregroundStyle(.orange)
-                                    Text("\(task.streak)")
-                                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                }
-                            }
-                        }
-
-                        // Real-time travel duration & distance in miles
-                        if let distance = distanceMeters, !node.isCurrentlyInside {
-                            HStack(spacing: 4) {
-                                Image(systemName: node.travelMode.iconName)
-                                    .font(.system(size: 9, weight: .bold))
-                                Text(node.travelMode.formattedETA(distanceMeters: distance))
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                Text("·")
-                                    .font(.system(size: 9))
-                                Text(TravelMode.formatMiles(distanceMeters: distance))
-                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(statusBackgroundColor, in: Capsule())
-                            .foregroundStyle(statusForegroundColor)
-                        }
-                    } else {
-                        // Clean idle badge for nodes without tasks
-                        HStack(spacing: 4) {
-                            if let distance = distanceMeters {
-                                HStack(spacing: 3) {
-                                    Image(systemName: node.travelMode.iconName)
-                                        .font(.system(size: 9))
-                                    Text(TravelMode.formatMiles(distanceMeters: distance))
-                                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                                }
-                                .foregroundStyle(.secondary)
-                            } else {
-                                Text("Node Ready")
-                                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
+        VStack(spacing: 3) {
+            // Optional minimal travel ETA pill (only travel duration from where you are to node)
+            if showDetailCard, isArmed, let distance = distanceMeters, !node.isCurrentlyInside {
+                HStack(spacing: 3) {
+                    Image(systemName: node.travelMode.iconName)
+                        .font(.system(size: 9, weight: .bold))
+                    Text(node.travelMode.formattedETA(distanceMeters: distance))
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.secondary.opacity(0.18), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.14), radius: 4, y: 2)
-                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2.5)
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().stroke(Color.secondary.opacity(0.18), lineWidth: 0.5))
+                .foregroundStyle(.primary)
+                .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
             }
 
             // Center Node with Fuse Ring & Presence Pulse
             ZStack {
                 if node.isCurrentlyInside {
                     Circle()
-                        .stroke(Color.green.opacity(0.35), lineWidth: 2)
-                        .frame(width: isPulsing ? 48 : 32, height: isPulsing ? 48 : 32)
+                        .stroke(Color.primary.opacity(0.25), lineWidth: 2)
+                        .frame(width: isPulsing ? 44 : 30, height: isPulsing ? 44 : 30)
                         .scaleEffect(isPulsing ? 1.2 : 0.9)
                         .opacity(isPulsing ? 0 : 0.8)
                 }
@@ -265,28 +213,6 @@ struct NodeMarkerView: View {
                     isPulsing = true
                 }
             }
-        }
-    }
-
-    private var statusBackgroundColor: Color {
-        switch arrivalStatus {
-        case .onTime:
-            return Color.accentColor.opacity(0.15)
-        case .approachingDeadline:
-            return Color.orange.opacity(0.2)
-        case .late:
-            return Color.red.opacity(0.2)
-        }
-    }
-
-    private var statusForegroundColor: Color {
-        switch arrivalStatus {
-        case .onTime:
-            return Color.accentColor
-        case .approachingDeadline:
-            return Color.orange
-        case .late:
-            return Color.red
         }
     }
 }
@@ -323,7 +249,7 @@ struct DraftNodeMarkerView: View {
                 Circle()
                     .fill(Color.accentColor)
                     .frame(width: 14, height: 14)
-                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
             }
             .frame(width: 36, height: 36)
 
@@ -355,7 +281,7 @@ struct UserPresenceMarker: View {
             Circle()
                 .fill(Color.blue)
                 .frame(width: 14, height: 14)
-                .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
+                .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2.5))
                 .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
         }
         .onAppear {

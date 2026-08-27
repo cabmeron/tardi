@@ -57,15 +57,17 @@ struct LofiMapView: View {
                             longitude: node.longitude
                         )
                         Annotation(node.name, coordinate: coordinate) {
-                            NodeMarkerView(
-                                node: node,
-                                now: Date(),
-                                userCoordinate: userCoordinate,
-                                showDetailCard: showNodeCards
-                            )
-                            .onTapGesture {
+                            Button {
                                 onSelectNode(node)
+                            } label: {
+                                NodeMarkerView(
+                                    node: node,
+                                    now: Date(),
+                                    userCoordinate: userCoordinate,
+                                    showDetailCard: showNodeCards
+                                )
                             }
+                            .buttonStyle(.plain)
                         }
                         .annotationTitles(.hidden)
                     }
@@ -81,6 +83,21 @@ struct LofiMapView: View {
                 .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll, showsTraffic: false))
                 .mapControlVisibility(.hidden)
                 .onTapGesture(coordinateSpace: .local) { screenPoint in
+                    // 1. Check if user tapped on or near any existing node marker
+                    for node in nodes {
+                        let nodeCoord = CLLocationCoordinate2D(latitude: node.latitude, longitude: node.longitude)
+                        if let nodePoint = proxy.convert(nodeCoord, to: .local) {
+                            let dx = screenPoint.x - nodePoint.x
+                            let dy = screenPoint.y - nodePoint.y
+                            let screenDist = sqrt(dx * dx + dy * dy)
+                            if screenDist < 48 {
+                                onSelectNode(node)
+                                return
+                            }
+                        }
+                    }
+
+                    // 2. Tapped empty map space -> place new draft location
                     if let coordinate = proxy.convert(screenPoint, from: .local) {
                         onTapCoordinate(coordinate)
                     }

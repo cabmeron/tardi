@@ -142,7 +142,7 @@ struct CommitmentDetailView: View {
         .multilineTextAlignment(.center)
     }
 
-    // MARK: - 2. Monolith Cockpit Hero (Embedded Telemetry Ring)
+    // MARK: - 2. Monolith Cockpit Hero (Embedded Burning Fuse Countdown)
 
     private func monolithCockpitRing(now: Date) -> some View {
         let nearest = node.nearestUpcomingTask(after: now)
@@ -152,158 +152,18 @@ struct CommitmentDetailView: View {
         let distance = calculatedDistance
         let totalStreak = node.tasks.reduce(0) { $0 + $1.streak }
 
-        let hours = Int(timeRemaining) / 3600
-        let minutes = (Int(timeRemaining) % 3600) / 60
-        let seconds = Int(timeRemaining) % 60
-
-        return ZStack {
-            // Ambient Outer Track
-            Circle()
-                .stroke(Color.secondary.opacity(0.12), lineWidth: 8)
-                .frame(width: 200, height: 200)
-
-            // Dynamic Glowing Progress Arc
-            if !node.tasks.isEmpty {
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        isDone
-                            ? AnyShapeStyle(Color.green)
-                            : AnyShapeStyle(
-                                AngularGradient(
-                                    gradient: Gradient(colors: [
-                                        node.isCurrentlyInside ? .green : Color.accentColor,
-                                        .orange,
-                                        .red
-                                    ]),
-                                    center: .center,
-                                    startAngle: .degrees(-90),
-                                    endAngle: .degrees(270)
-                                )
-                            ),
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                    )
-                    .frame(width: 200, height: 200)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 1), value: progress)
-            }
-
-            // Monolith Interior: Digits + Embedded Telemetry Bar
-            VStack(spacing: 6) {
-                if isDone {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 38))
-                        .foregroundStyle(.green)
-
-                    Text("CHECKED IN")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(.green)
-                        .tracking(1)
-
-                    HStack(spacing: 4) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.orange)
-                        Text("\(totalStreak) Days Streak")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.primary)
-                    }
-                    .padding(.top, 2)
-                } else if let task = nearest {
-                    // Task Name Header
-                    Text(task.title.uppercased())
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .tracking(1)
-                        .lineLimit(1)
-
-                    // Bold Countdown Digits
-                    HStack(spacing: 2) {
-                        if hours > 0 {
-                            timeDigitBlock(value: hours, label: "H")
-                            Text(":").font(.system(size: 16, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
-                        }
-                        timeDigitBlock(value: minutes, label: "M")
-                        Text(":").font(.system(size: 16, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
-                        timeDigitBlock(value: seconds, label: "S")
-                    }
-
-                    // Embedded Compact Telemetry Icon Row
-                    HStack(spacing: 8) {
-                        // Transit ETA
-                        if let dist = distance {
-                            HStack(spacing: 2) {
-                                Image(systemName: node.travelMode.iconName)
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(Color.accentColor)
-                                Text(node.travelMode.formattedETA(distanceMeters: dist))
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            }
-                            Text("·").foregroundStyle(.secondary)
-
-                            // Distance
-                            Text(TravelMode.formatMiles(distanceMeters: dist))
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-
-                            Text("·").foregroundStyle(.secondary)
-                        }
-
-                        // Streak
-                        HStack(spacing: 2) {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.orange)
-                            Text("\(totalStreak)d")
-                                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    .padding(.top, 2)
-
-                    // Presence Pill
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(node.isCurrentlyInside ? Color.green : Color.orange)
-                            .frame(width: 6, height: 6)
-                        Text(node.isCurrentlyInside ? "At Location" : "Away")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .foregroundStyle(node.isCurrentlyInside ? .green : .secondary)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
-                } else {
-                    Image(systemName: "plus.circle.dashed")
-                        .font(.system(size: 32))
-                        .foregroundStyle(Color.accentColor)
-
-                    Text("NO ACTIVE TASKS")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .tracking(1)
-
-                    Button("Add Task") {
-                        showingAddTaskSheet = true
-                    }
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.accentColor)
-                }
-            }
-            .padding(.horizontal, 20)
-        }
-        .frame(height: 215)
-    }
-
-    private func timeDigitBlock(value: Int, label: String) -> some View {
-        VStack(spacing: 0) {
-            Text(String(format: "%02d", value))
-                .font(.system(size: 24, weight: .bold, design: .monospaced))
-                .foregroundStyle(.primary)
-            Text(label)
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.secondary)
-        }
+        return BurningFuseCountdownView(
+            progress: progress,
+            timeRemaining: timeRemaining,
+            taskTitle: nearest?.title,
+            isCompleted: isDone,
+            totalStreak: totalStreak,
+            transitETA: distance != nil ? node.travelMode.formattedETA(distanceMeters: distance!) : nil,
+            transitModeIcon: distance != nil ? node.travelMode.iconName : nil,
+            distanceText: distance != nil ? TravelMode.formatMiles(distanceMeters: distance!) : nil,
+            isInsideLocation: node.isCurrentlyInside,
+            onAddTask: { showingAddTaskSheet = true }
+        )
     }
 
     // MARK: - 3. Tasks at this Location Section

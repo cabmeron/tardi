@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"tardi-backend/config"
-	"tardi-backend/db"
 
 	"github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/customer"
+	"github.com/stripe/stripe-go/v78/paymentintent"
 	"github.com/stripe/stripe-go/v78/setupintent"
 )
 
@@ -29,22 +29,17 @@ type SetupIntentResponse struct {
 	Error        string `json:"error,omitempty"`
 }
 
-func HandleCreateSetupIntent(store *db.Store, cfg *config.Config) http.HandlerFunc {
+func HandleCreateSetupIntent(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req SetupIntentRequest
 		if r.Body != nil {
 			_ = json.NewDecoder(r.Body).Decode(&req)
 		}
 
-		userID := req.UserID
-		if userID == "" {
-			userID = "user_default"
-		}
-
 		log.Printf("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 		log.Printf("📥 [VAULT REQUEST] Incoming POST /api/v1/vault/setup-intent")
 		log.Printf("   • Email:      %q", req.Email)
-		log.Printf("   • UserID:     %q", userID)
+		log.Printf("   • UserID:     %q", req.UserID)
 		log.Printf("   • CustomerID: %q", req.CustomerID)
 		log.Printf("   • Mode:       %s", func() string {
 			if cfg.IsTestMode {
@@ -61,16 +56,10 @@ func HandleCreateSetupIntent(store *db.Store, cfg *config.Config) http.HandlerFu
 			}
 			mockClientSecret := fmt.Sprintf("seti_mock_%d_secret_%d", time.Now().Unix(), time.Now().UnixNano())
 
-			// Save to store
-			store.SaveUser(&db.UserRecord{
-				ID:               userID,
-				Email:            req.Email,
-				StripeCustomerID: mockCustID,
-			})
-
 			log.Printf("⚠️  [STRIPE NOTICE] STRIPE_SECRET_KEY is not set. Generating mock IDs.")
 			log.Printf("   • Mock Customer:    %s", mockCustID)
 			log.Printf("   • Mock SetupIntent: %s", mockClientSecret)
+			log.Printf("   👉 To see real entries in your Stripe Dashboard, provide STRIPE_SECRET_KEY=sk_test_...")
 			log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 			respondJSON(w, http.StatusOK, SetupIntentResponse{
@@ -82,7 +71,7 @@ func HandleCreateSetupIntent(store *db.Store, cfg *config.Config) http.HandlerFu
 			return
 		}
 
-		// 2. Production Stripe Execution
+		// 2. Production / Live Stripe Execution
 		custID := req.CustomerID
 		if custID == "" {
 			email := req.Email
@@ -96,13 +85,14 @@ func HandleCreateSetupIntent(store *db.Store, cfg *config.Config) http.HandlerFu
 			}
 			custParams.AddMetadata("created_by", "tardi-backend")
 			custParams.AddMetadata("app", "Tardi Habit Tracker")
-			if userID != "" {
-				custParams.AddMetadata("userId", userID)
+			if req.UserID != "" {
+				custParams.AddMetadata("userId", req.UserID)
 			}
 
 			c, err := customer.New(custParams)
 			if err != nil {
 				log.Printf("❌ [STRIPE ERROR] Failed to create customer in Stripe: %v", err)
+				log.Printf("   👉 Check that your STRIPE_SECRET_KEY starts with 'sk_test_' and is valid.")
 				log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 				respondJSON(w, http.StatusInternalServerError, SetupIntentResponse{
 					Success: false,
@@ -126,8 +116,8 @@ func HandleCreateSetupIntent(store *db.Store, cfg *config.Config) http.HandlerFu
 			PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
 		}
 		siParams.AddMetadata("created_by", "tardi-backend")
-		if userID != "" {
-			siParams.AddMetadata("userId", userID)
+		if req.UserID != "" {
+			siParams.AddMetadata("userId", req.UserID)
 		}
 
 		si, err := setupintent.New(siParams)
@@ -140,13 +130,6 @@ func HandleCreateSetupIntent(store *db.Store, cfg *config.Config) http.HandlerFu
 			})
 			return
 		}
-
-		// Save to store
-		store.SaveUser(&db.UserRecord{
-			ID:               userID,
-			Email:            req.Email,
-			StripeCustomerID: custID,
-		})
 
 		log.Printf("✅ [STRIPE SUCCESS] Real SetupIntent Created in Stripe!")
 		log.Printf("   • SetupIntent ID: %s", si.ID)
@@ -165,6 +148,128 @@ func HandleCreateSetupIntent(store *db.Store, cfg *config.Config) http.HandlerFu
 			ClientSecret: si.ClientSecret,
 			CustomerID:   custID,
 			Message:      "SetupIntent created successfully",
+		})
+	}
+}
+
+type CreatePaymentIntentRequest struct {
+	CustomerID        string `json:"customerId,omitempty"`
+	Email             string `json:"email,omitempty"`
+	UserID            string `json:"userId,omitempty"`
+	TaskID            string `json:"taskId,omitempty"`
+	TaskTitle         string `json:"taskTitle,omitempty"`
+	PledgeAmountCents int64  `json:"pledgeAmountCents"`
+}
+
+type CreatePaymentIntentResponse struct {
+	Success         bool   `json:"success"`
+	ClientSecret    string `json:"clientSecret"`
+	CustomerID      string `json:"customerId"`
+	PaymentIntentID string `json:"paymentIntentId"`
+	Status          string `json:"status"` // requires_capture, requires_payment_method
+	Message         string `json:"message,omitempty"`
+	Error           string `json:"error,omitempty"`
+}
+
+// HandleCreatePreAuthPaymentIntent creates an upfront PaymentIntent with manual capture (Authorization Hold).
+// The user's goal is to arrive on time to CANCEL this PaymentIntent before the deadline!
+func HandleCreatePreAuthPaymentIntent(cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req CreatePaymentIntentRequest
+		if r.Body != nil {
+			_ = json.NewDecoder(r.Body).Decode(&req)
+		}
+
+		log.Printf("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		log.Printf("📥 [PRE-AUTH INTENT] Incoming POST /api/v1/vault/create-payment-intent")
+		log.Printf("   • TaskTitle: %q", req.TaskTitle)
+		log.Printf("   • Amount:    $%.2f (%d cents)", float64(req.PledgeAmountCents)/100.0, req.PledgeAmountCents)
+		log.Printf("   • Mode:      Manual Capture (Pre-Authorization)")
+
+		// Fallback amount check
+		if req.PledgeAmountCents <= 0 {
+			req.PledgeAmountCents = 1000 // default $10
+		}
+
+		if cfg.IsTestMode {
+			mockCustID := req.CustomerID
+			if mockCustID == "" {
+				mockCustID = fmt.Sprintf("cus_mock_%d", time.Now().Unix())
+			}
+			mockPI := fmt.Sprintf("pi_preauth_mock_%d", time.Now().Unix())
+			mockClientSecret := fmt.Sprintf("%s_secret_%d", mockPI, time.Now().UnixNano())
+
+			log.Printf("⚠️ [SANDBOX PRE-AUTH] Generated Mock PaymentIntent: %s", mockPI)
+			log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+			respondJSON(w, http.StatusOK, CreatePaymentIntentResponse{
+				Success:         true,
+				ClientSecret:    mockClientSecret,
+				CustomerID:      mockCustID,
+				PaymentIntentID: mockPI,
+				Status:          "requires_capture",
+				Message:         "Pre-Auth PaymentIntent generated (Manual Capture)",
+			})
+			return
+		}
+
+		// Live Stripe Mode
+		custID := req.CustomerID
+		if custID == "" {
+			email := req.Email
+			if email == "" {
+				email = "user@tardi.app"
+			}
+			custParams := &stripe.CustomerParams{Email: stripe.String(email)}
+			c, err := customer.New(custParams)
+			if err != nil {
+				respondJSON(w, http.StatusInternalServerError, CreatePaymentIntentResponse{
+					Success: false,
+					Error:   fmt.Sprintf("Failed to create Stripe customer: %v", err),
+				})
+				return
+			}
+			custID = c.ID
+		}
+
+		// Create PaymentIntent with CaptureMethod = 'manual' (Authorization Hold)
+		// Reuses the customer's vaulted payment method saved during the initial SetupIntent!
+		piParams := &stripe.PaymentIntentParams{
+			Amount:             stripe.Int64(req.PledgeAmountCents),
+			Currency:           stripe.String(string(stripe.CurrencyUSD)),
+			Customer:           stripe.String(custID),
+			CaptureMethod:      stripe.String(string(stripe.PaymentIntentCaptureMethodManual)),
+			PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
+			Description:        stripe.String(fmt.Sprintf("Tardi Commitment Stake: %s", req.TaskTitle)),
+		}
+		if req.TaskID != "" {
+			piParams.AddMetadata("taskId", req.TaskID)
+		}
+		if req.UserID != "" {
+			piParams.AddMetadata("userId", req.UserID)
+		}
+
+		pi, err := paymentintent.New(piParams)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, CreatePaymentIntentResponse{
+				Success: false,
+				Error:   fmt.Sprintf("Failed to create Pre-Auth PaymentIntent: %v", err),
+			})
+			return
+		}
+
+		log.Printf("✅ [STRIPE PRE-AUTH] Created PaymentIntent ID: %s (Status: %s)", pi.ID, pi.Status)
+		log.Printf("   • Reused Customer ID: %s (Vaulted Card on File)", custID)
+		log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+		log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+		respondJSON(w, http.StatusOK, CreatePaymentIntentResponse{
+			Success:         true,
+			ClientSecret:    pi.ClientSecret,
+			CustomerID:      custID,
+			PaymentIntentID: pi.ID,
+			Status:          string(pi.Status),
+			Message:         "PaymentIntent created with manual capture hold",
 		})
 	}
 }

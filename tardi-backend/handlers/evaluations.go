@@ -9,7 +9,6 @@ import (
 
 	"tardi-backend/config"
 	"tardi-backend/crypto"
-	"tardi-backend/db"
 
 	"github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/paymentintent"
@@ -37,7 +36,7 @@ type ForfeitResponse struct {
 	Error           string `json:"error,omitempty"`
 }
 
-func HandleForfeit(store *db.Store, cfg *config.Config) http.HandlerFunc {
+func HandleForfeit(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req ForfeitRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -70,33 +69,15 @@ func HandleForfeit(store *db.Store, cfg *config.Config) http.HandlerFunc {
 			return
 		}
 
-		now := time.Now().UTC()
-
 		// 1. Mock / Sandbox Mode
 		if cfg.IsTestMode {
-			mockPI := fmt.Sprintf("pi_mock_%d", now.Unix())
-			eval, _ := store.GetEvaluation(req.TaskID, req.DeadlineDate)
-			if eval == nil {
-				eval = &db.EvaluationRecord{
-					ID:           fmt.Sprintf("eval_%d", now.UnixNano()),
-					TaskID:       req.TaskID,
-					UserID:       req.UserID,
-					DeadlineDate: req.DeadlineDate,
-					AmountCents:  req.PledgeAmountCents,
-					CreatedAt:    now,
-				}
-			}
-			eval.Status = "FORFEITED"
-			eval.StripePaymentIntentID = mockPI
-			eval.SettledAt = &now
-			store.SaveEvaluation(eval)
-
+			mockPI := fmt.Sprintf("pi_mock_%d", time.Now().Unix())
 			respondJSON(w, http.StatusOK, ForfeitResponse{
 				Success:         true,
 				Status:          "FORFEITED",
 				AmountCents:     req.PledgeAmountCents,
 				PaymentIntentID: mockPI,
-				Message:         fmt.Sprintf("Penalty of $%.2f executed and charged successfully", float64(req.PledgeAmountCents)/100.0),
+				Message:         fmt.Sprintf("Mock forfeiture of $%.2f executed successfully", float64(req.PledgeAmountCents)/100.0),
 			})
 			return
 		}
@@ -108,7 +89,7 @@ func HandleForfeit(store *db.Store, cfg *config.Config) http.HandlerFunc {
 			Customer:    stripe.String(req.CustomerID),
 			Confirm:     stripe.Bool(true),
 			OffSession:  stripe.Bool(true),
-			Description: stripe.String(fmt.Sprintf("Tardi Penalty: Missed deadline for %s", req.TaskTitle)),
+			Description: stripe.String(fmt.Sprintf("Tardi Forfeiture: Missed deadline for %s", req.TaskTitle)),
 		}
 		if req.PaymentMethodID != "" {
 			params.PaymentMethod = stripe.String(req.PaymentMethodID)
@@ -124,15 +105,6 @@ func HandleForfeit(store *db.Store, cfg *config.Config) http.HandlerFunc {
 			if stripeErr, ok := err.(*stripe.Error); ok {
 				if stripeErr.DeclineCode == "insufficient_funds" || stripeErr.Code == stripe.ErrorCodeCardDeclined {
 					log.Printf("⚠️ Card declined for user %s: %s", req.UserID, stripeErr.DeclineCode)
-
-					user, _ := store.GetUser(req.UserID)
-					if user != nil {
-						user.IsLockedForDebt = true
-						user.OutstandingDebtAmount += req.PledgeAmountCents
-						user.FailedTaskTitle = req.TaskTitle
-						store.SaveUser(user)
-					}
-
 					respondJSON(w, http.StatusOK, ForfeitResponse{
 						Success:     false,
 						Status:      "PAYMENT_FAILED",
@@ -152,28 +124,129 @@ func HandleForfeit(store *db.Store, cfg *config.Config) http.HandlerFunc {
 			return
 		}
 
-		eval, _ := store.GetEvaluation(req.TaskID, req.DeadlineDate)
-		if eval == nil {
-			eval = &db.EvaluationRecord{
-				ID:           fmt.Sprintf("eval_%d", now.UnixNano()),
-				TaskID:       req.TaskID,
-				UserID:       req.UserID,
-				DeadlineDate: req.DeadlineDate,
-				AmountCents:  req.PledgeAmountCents,
-				CreatedAt:    now,
-			}
-		}
-		eval.Status = "FORFEITED"
-		eval.StripePaymentIntentID = pi.ID
-		eval.SettledAt = &now
-		store.SaveEvaluation(eval)
-
 		respondJSON(w, http.StatusOK, ForfeitResponse{
 			Success:         true,
 			Status:          "FORFEITED",
 			AmountCents:     pi.Amount,
 			PaymentIntentID: pi.ID,
-			Message:         "Penalty captured. Money charged.",
+			Message:         "Forfeiture penalty charged successfully",
+		})
+	}
+}
+
+type CancelPaymentIntentRequest struct {
+	PaymentIntentID string `json:"paymentIntentId"`
+	TaskID          string `json:"taskId,omitempty"`
+	Reason          string `json:"reason,omitempty"`
+}
+
+type CancelPaymentIntentResponse struct {
+	Success bool   `json:"success"`
+	Status  string `json:"status"` // CANCELED
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// HandleCancelPaymentIntent cancels a pre-authorized PaymentIntent when the user achieves their goal (Arrives on Time!).
+func HandleCancelPaymentIntent(cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req CancelPaymentIntentRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.PaymentIntentID == "" {
+			respondJSON(w, http.StatusBadRequest, CancelPaymentIntentResponse{
+				Success: false,
+				Error:   "Missing paymentIntentId",
+			})
+			return
+		}
+
+		log.Printf("\n🎉 [GOAL ACHIEVED] Canceling PaymentIntent: %s", req.PaymentIntentID)
+
+		if cfg.IsTestMode {
+			respondJSON(w, http.StatusOK, CancelPaymentIntentResponse{
+				Success: true,
+				Status:  "CANCELED",
+				Message: "PaymentIntent hold released - Goal Achieved! (Sandbox Mock)",
+			})
+			return
+		}
+
+		params := &stripe.PaymentIntentCancelParams{
+			CancellationReason: stripe.String(string(stripe.PaymentIntentCancellationReasonAbandoned)),
+		}
+		pi, err := paymentintent.Cancel(req.PaymentIntentID, params)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, CancelPaymentIntentResponse{
+				Success: false,
+				Error:   fmt.Sprintf("Failed to cancel PaymentIntent: %v", err),
+			})
+			return
+		}
+
+		log.Printf("✅ [STRIPE CANCELED] PaymentIntent %s successfully canceled! Status: %s", pi.ID, pi.Status)
+
+		respondJSON(w, http.StatusOK, CancelPaymentIntentResponse{
+			Success: true,
+			Status:  string(pi.Status),
+			Message: "PaymentIntent hold successfully released - Commitment Met!",
+		})
+	}
+}
+
+type CapturePaymentIntentRequest struct {
+	PaymentIntentID string `json:"paymentIntentId"`
+	AmountCents     int64  `json:"amountCents,omitempty"`
+}
+
+type CapturePaymentIntentResponse struct {
+	Success bool   `json:"success"`
+	Status  string `json:"status"` // SUCCEEDED
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// HandleCapturePaymentIntent captures the pre-authorized PaymentIntent when a deadline is missed.
+func HandleCapturePaymentIntent(cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req CapturePaymentIntentRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.PaymentIntentID == "" {
+			respondJSON(w, http.StatusBadRequest, CapturePaymentIntentResponse{
+				Success: false,
+				Error:   "Missing paymentIntentId",
+			})
+			return
+		}
+
+		log.Printf("\n⚠️ [DEADLINE MISSED] Capturing PaymentIntent: %s", req.PaymentIntentID)
+
+		if cfg.IsTestMode {
+			respondJSON(w, http.StatusOK, CapturePaymentIntentResponse{
+				Success: true,
+				Status:  "SUCCEEDED",
+				Message: "PaymentIntent captured - Stake forfeited (Sandbox Mock)",
+			})
+			return
+		}
+
+		params := &stripe.PaymentIntentCaptureParams{}
+		if req.AmountCents > 0 {
+			params.AmountToCapture = stripe.Int64(req.AmountCents)
+		}
+
+		pi, err := paymentintent.Capture(req.PaymentIntentID, params)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, CapturePaymentIntentResponse{
+				Success: false,
+				Error:   fmt.Sprintf("Failed to capture PaymentIntent: %v", err),
+			})
+			return
+		}
+
+		log.Printf("💳 [STRIPE CAPTURED] PaymentIntent %s captured! Status: %s", pi.ID, pi.Status)
+
+		respondJSON(w, http.StatusOK, CapturePaymentIntentResponse{
+			Success: true,
+			Status:  string(pi.Status),
+			Message: "PaymentIntent captured successfully due to missed commitment",
 		})
 	}
 }

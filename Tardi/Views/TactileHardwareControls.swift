@@ -1,6 +1,262 @@
 import SwiftUI
 import UIKit
 
+// MARK: - 0. Animated Minimalist Burning Fuse Countdown (Hero Timer)
+
+/// An architectural burning fuse countdown hero with a tactile braided cord track,
+/// minimal monochromatic palette, and an animated flickering spark / white-hot ember head
+/// that burns down the ring in real time.
+struct BurningFuseCountdownView: View {
+    let progress: Double // 0.0 to 1.0 (1.0 = full time remaining, 0.0 = expired / deadline)
+    let timeRemaining: TimeInterval
+    let taskTitle: String?
+    let isCompleted: Bool
+    let totalStreak: Int
+    let transitETA: String?
+    let transitModeIcon: String?
+    let distanceText: String?
+    let isInsideLocation: Bool
+    let onAddTask: (() -> Void)?
+
+    @State private var emberFlicker = false
+
+    private var hours: Int { Int(max(0, timeRemaining)) / 3600 }
+    private var minutes: Int { (Int(max(0, timeRemaining)) % 3600) / 60 }
+    private var seconds: Int { Int(max(0, timeRemaining)) % 60 }
+
+    private let ringRadius: CGFloat = 96
+    private let strokeWidth: CGFloat = 5
+
+    private var emberAngleDegrees: Double {
+        -90.0 + (progress * 360.0)
+    }
+
+    private var emberPosition: CGPoint {
+        let radians = emberAngleDegrees * .pi / 180.0
+        return CGPoint(
+            x: CGFloat(Darwin.cos(radians)) * ringRadius,
+            y: CGFloat(Darwin.sin(radians)) * ringRadius
+        )
+    }
+
+    var body: some View {
+        ZStack {
+            // 0. Clear Acrylic Glass Lens Disc (Frosted Material + Specular Sheen)
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(width: (ringRadius * 2) + 24, height: (ringRadius * 2) + 24)
+                .overlay(
+                    // Outer Glass Beveled Rim
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.65),
+                                    Color.white.opacity(0.2),
+                                    Color.primary.opacity(0.1),
+                                    Color.black.opacity(0.15)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                )
+                .overlay(
+                    // Diagonal Specular Reflection Glint Arc
+                    Circle()
+                        .trim(from: 0.05, to: 0.4)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.45), Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .center
+                            ),
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-70))
+                        .padding(2)
+                )
+                .shadow(color: Color.black.opacity(0.1), radius: 14, y: 6)
+
+            // 1. Etched Glass Track (Groove Channel)
+            Circle()
+                .stroke(
+                    Color.secondary.opacity(0.14),
+                    style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round, dash: [3, 4])
+                )
+                .frame(width: ringRadius * 2, height: ringRadius * 2)
+
+            // 2. The Unburned Optical Fuse Cord (Monochrome Filament)
+            if taskTitle != nil, !isCompleted {
+                Circle()
+                    .trim(from: 0, to: CGFloat(progress))
+                    .stroke(
+                        Color.primary.opacity(0.85),
+                        style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
+                    )
+                    .frame(width: ringRadius * 2, height: ringRadius * 2)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 1), value: progress)
+
+                // 3. The Animated Burning Spark / Ember Head (White-Hot with Amber Halo)
+                if progress > 0.005 && progress < 0.999 {
+                    ZStack {
+                        // Outer Pulsing Heat Halo
+                        Circle()
+                            .fill(Color.orange.opacity(emberFlicker ? 0.35 : 0.15))
+                            .frame(width: emberFlicker ? 22 : 16, height: emberFlicker ? 22 : 16)
+                            .blur(radius: 3)
+
+                        // Burning Amber Corona
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 8, height: 8)
+                            .shadow(color: Color.orange.opacity(0.9), radius: emberFlicker ? 5 : 3)
+
+                        // White-Hot Ember Core
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 4, height: 4)
+
+                        // Radiating Spark Flecks
+                        ForEach(0..<3) { i in
+                            Circle()
+                                .fill(Color.orange.opacity(emberFlicker ? 0.8 : 0.2))
+                                .frame(width: 1.5, height: 1.5)
+                                .offset(
+                                    x: CGFloat(Darwin.cos(Double(i) * 2.1 + (emberFlicker ? 1.0 : 0.0))) * 7,
+                                    y: CGFloat(Darwin.sin(Double(i) * 2.1 + (emberFlicker ? 1.0 : 0.0))) * 7
+                                )
+                        }
+                    }
+                    .offset(x: emberPosition.x, y: emberPosition.y)
+                    .animation(.easeInOut(duration: 0.18).repeatForever(autoreverses: true), value: emberFlicker)
+                }
+            } else if isCompleted {
+                // Completed Ring: Crisp Minimal Black / Primary Seal
+                Circle()
+                    .stroke(Color.primary, style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round))
+                    .frame(width: ringRadius * 2, height: ringRadius * 2)
+            }
+
+            // 4. Clean Monochromatic Telemetry Center
+            VStack(spacing: 6) {
+                if isCompleted {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.primary)
+
+                    Text("CHECKED IN")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .tracking(1)
+
+                    if totalStreak > 0 {
+                        HStack(spacing: 3) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.orange)
+                            Text("\(totalStreak)d Streak")
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                } else if let title = taskTitle {
+                    // Task Title
+                    Text(title.uppercased())
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .tracking(1)
+                        .lineLimit(1)
+
+                    // Travel Duration ETA & Distance from User to Node
+                    if let eta = transitETA, let icon = transitModeIcon {
+                        HStack(spacing: 4) {
+                            Image(systemName: icon)
+                                .font(.system(size: 11, weight: .bold))
+                            Text(eta)
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                            if let dist = distanceText {
+                                Text("·")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                                Text(dist)
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(Capsule().stroke(Color.secondary.opacity(0.18), lineWidth: 0.5))
+                        .foregroundStyle(.primary)
+                    }
+
+                    // Streak Counter
+                    if totalStreak > 0 {
+                        HStack(spacing: 3) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.orange)
+                            Text("\(totalStreak)d Streak")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                        }
+                    }
+
+                    // Presence Pill (Frosted Glass Badge)
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(isInsideLocation ? Color.primary : Color.secondary)
+                            .frame(width: 5, height: 5)
+                        Text(isInsideLocation ? "At Location" : "Away")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(isInsideLocation ? .primary : .secondary)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 3.5)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(Capsule().stroke(Color.secondary.opacity(0.18), lineWidth: 0.5))
+                } else {
+                    Image(systemName: "plus.circle.dashed")
+                        .font(.system(size: 30))
+                        .foregroundStyle(Color.accentColor)
+
+                    Text("NO ACTIVE TASKS")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .tracking(1)
+
+                    if let onAdd = onAddTask {
+                        Button("Add Task", action: onAdd)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+        }
+        .frame(height: 220)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.16).repeatForever(autoreverses: true)) {
+                emberFlicker = true
+            }
+        }
+    }
+
+    private func timeDigitCell(value: Int, unit: String) -> some View {
+        VStack(spacing: 0) {
+            Text(String(format: "%02d", value))
+                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                .foregroundStyle(.primary)
+            Text(unit)
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
 // MARK: - 1. Split-Flap Mechanical Odometer (Streaks & Counter)
 
 /// A physical Solari split-flap digit counter with realistic 3D flipping animations,
@@ -36,28 +292,28 @@ struct SplitFlapDigitCell: View {
         ZStack {
             // Background Card
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color(white: 0.12))
+                .fill(Color(.tertiarySystemGroupedBackground))
                 .frame(width: 28, height: 38)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.8)
+                        .stroke(Color.primary.opacity(0.15), lineWidth: 0.8)
                 )
 
             // Digit Text
             Text("\(digit)")
                 .font(.system(size: 22, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
 
             // Horizontal Split Seam
             Rectangle()
-                .fill(Color.black.opacity(0.85))
+                .fill(Color(.separator).opacity(0.6))
                 .frame(width: 28, height: 1.5)
 
             // Split-flap top/bottom subtle shading
             VStack(spacing: 0) {
-                LinearGradient(colors: [Color.white.opacity(0.06), Color.clear], startPoint: .top, endPoint: .bottom)
+                LinearGradient(colors: [Color.primary.opacity(0.04), Color.clear], startPoint: .top, endPoint: .bottom)
                     .frame(height: 19)
-                LinearGradient(colors: [Color.black.opacity(0.25), Color.clear], startPoint: .top, endPoint: .bottom)
+                LinearGradient(colors: [Color.primary.opacity(0.08), Color.clear], startPoint: .bottom, endPoint: .top)
                     .frame(height: 19)
             }
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -267,7 +523,7 @@ struct CockpitUrgencyGauge: View {
                     Circle()
                         .fill(Color.primary)
                         .frame(width: 10, height: 10)
-                        .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                        .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
 
                     // Needle Arm
                     Rectangle()
@@ -303,11 +559,11 @@ struct MultibandTransitTuner: View {
             ZStack(alignment: .bottom) {
                 // Background Metallic Housing
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(white: 0.12))
+                    .fill(Color(.tertiarySystemGroupedBackground))
                     .frame(height: 70)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            .stroke(Color(.separator).opacity(0.4), lineWidth: 1)
                     )
 
                 // Scale Ticks & Mode Icons
@@ -318,11 +574,11 @@ struct MultibandTransitTuner: View {
                             VStack(spacing: 2) {
                                 Image(systemName: mode.iconName)
                                     .font(.system(size: 13, weight: isSelected ? .bold : .regular))
-                                    .foregroundStyle(isSelected ? Color.orange : Color.white.opacity(0.45))
+                                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
 
                                 Text(mode.rawValue)
                                     .font(.system(size: 9, weight: .bold, design: .rounded))
-                                    .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.4))
+                                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
                             }
                             .frame(maxWidth: .infinity)
                             .contentShape(Rectangle())
@@ -337,14 +593,14 @@ struct MultibandTransitTuner: View {
                     // Laser Frequency Scale Line
                     ZStack(alignment: .leading) {
                         Rectangle()
-                            .fill(Color.orange.opacity(0.3))
+                            .fill(Color.primary.opacity(0.15))
                             .frame(height: 1)
 
                         // Stepped Tick Dashes
                         HStack {
                             ForEach(0..<modes.count, id: \.self) { _ in
                                 Rectangle()
-                                    .fill(Color.orange.opacity(0.5))
+                                    .fill(Color.primary.opacity(0.35))
                                     .frame(width: 1.5, height: 6)
                                     .frame(maxWidth: .infinity)
                             }

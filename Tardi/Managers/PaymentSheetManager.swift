@@ -6,6 +6,8 @@ import Combine
 final class PaymentSheetManager: ObservableObject {
     static let shared = PaymentSheetManager()
 
+    static let publishableKey = "pk_test_51U70crFqnsvKjM8mrYGWGwvuz1lDThA9R7dQPyPYfiFb4sqoz86FH2uPgqivUsuA9MZVU7OxqPqRQPrfoHghfpqa00LxKf0K8l"
+
     @Published var isVaultArmed: Bool = false
     @Published var cardBrand: String = "Visa"
     @Published var cardLast4: String = "4242"

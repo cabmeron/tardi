@@ -26,7 +26,10 @@ struct RadarHomeView: View {
                 nodes: nodes,
                 draft: $draft,
                 onSelectNode: { node in
-                    selectedNode = node
+                    withAnimation(.spring(response: 0.25)) {
+                        draft = nil
+                        selectedNode = node
+                    }
                 },
                 onTapCoordinate: { coordinate in
                     placeDraft(at: coordinate, name: nil)
@@ -323,6 +326,19 @@ struct RadarHomeView: View {
     }
 
     private func placeDraft(at coordinate: CLLocationCoordinate2D, name: String?) {
+        // If tapping within any existing node's geofence or marker proximity, select the node instead of drafting
+        let tapLoc = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        for node in nodes {
+            let nodeLoc = CLLocation(latitude: node.latitude, longitude: node.longitude)
+            if tapLoc.distance(from: nodeLoc) <= max(node.radius, 40) {
+                withAnimation(.spring(response: 0.25)) {
+                    draft = nil
+                    selectedNode = node
+                }
+                return
+            }
+        }
+
         draft = DraftLocation(
             coordinate: coordinate,
             radius: draft?.radius ?? 100,

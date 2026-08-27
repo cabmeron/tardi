@@ -27,36 +27,42 @@ struct SolarDaylightArcPicker: View {
         dragProgress ?? (Double(totalMinutes) / 1440.0)
     }
 
-    private var hour: Int {
-        calendar.component(.hour, from: time)
-    }
-
-    private var celestialColor: Color {
-        switch hour {
-        case 5..<8:  return .orange
-        case 8..<17: return .yellow
-        case 17..<20: return .orange
-        default:     return .indigo
+    private var daylightPhase: (title: String, icon: String) {
+        let h = calendar.component(.hour, from: time)
+        switch h {
+        case 5..<9:   return ("Dawn", "sunrise.fill")
+        case 9..<12:  return ("Morning", "sun.max.fill")
+        case 12..<15: return ("Midday", "sun.max.fill")
+        case 15..<18: return ("Afternoon", "sun.and.horizon.fill")
+        case 18..<21: return ("Dusk", "sunset.fill")
+        default:      return ("Night", "moon.stars.fill")
         }
     }
 
     var body: some View {
         VStack(spacing: 16) {
-            // 1. Prominent Centered Digital Time
-            Text(time.formatted(date: .omitted, time: .shortened))
-                .font(.system(size: 32, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
+            // 1. Prominent Physical Daylight Phase Indicator
+            HStack(spacing: 8) {
+                Image(systemName: daylightPhase.icon)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.primary)
+
+                Text(daylightPhase.title.uppercased())
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .tracking(1.5)
+            }
 
             // 2. Silky Smooth Bounded Slider Track
             GeometryReader { geometry in
                 let totalWidth = geometry.size.width
-                let trackHeight: CGFloat = 12
-                let knobSize: CGFloat = 30
+                let trackHeight: CGFloat = 6
+                let knobSize: CGFloat = 26
                 let usableWidth = max(totalWidth - knobSize, 1.0)
                 let knobX = CGFloat(dayProgress) * usableWidth
 
                 ZStack(alignment: .leading) {
-                    // Track Background (Circadian 24h Gradient)
+                    // Track Background
                     RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
                         .fill(Color(.tertiarySystemGroupedBackground))
                         .frame(height: trackHeight)
@@ -65,21 +71,9 @@ struct SolarDaylightArcPicker: View {
                                 .stroke(Color.secondary.opacity(0.15), lineWidth: 0.8)
                         )
 
-                    // Active Glowing Fill Bar
+                    // Active Monochrome Fill Bar
                     RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.indigo.opacity(0.7),
-                                    Color.orange.opacity(0.85),
-                                    Color.yellow.opacity(0.9),
-                                    Color.orange.opacity(0.85),
-                                    Color.purple.opacity(0.8)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .fill(Color.primary.opacity(0.75))
                         .frame(width: max(knobX + knobSize / 2, trackHeight), height: trackHeight)
 
                     // Hour Tick Markers
@@ -89,8 +83,8 @@ struct SolarDaylightArcPicker: View {
                                 Spacer()
                             }
                             Rectangle()
-                                .fill(Color.secondary.opacity(0.25))
-                                .frame(width: 1.5, height: tick == 0 || tick == 4 ? 6 : 4)
+                                .fill(Color.secondary.opacity(0.3))
+                                .frame(width: 1.0, height: 4)
                         }
                     }
                     .padding(.horizontal, knobSize / 2)
@@ -98,25 +92,25 @@ struct SolarDaylightArcPicker: View {
 
                     // Tactile Draggable Knob
                     ZStack {
-                        // Ambient Glowing Halo
+                        // Ambient Drag Halo
                         Circle()
-                            .fill(celestialColor.opacity(isDragging ? 0.45 : 0.2))
+                            .fill(Color.primary.opacity(isDragging ? 0.1 : 0.0))
                             .frame(width: isDragging ? 42 : 32, height: isDragging ? 42 : 32)
                             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isDragging)
 
-                        // Solid White Bezel
+                        // Solid Bezel
                         Circle()
                             .fill(Color(.secondarySystemGroupedBackground))
                             .frame(width: knobSize, height: knobSize)
                             .overlay(
                                 Circle()
-                                    .stroke(celestialColor.opacity(0.9), lineWidth: 2)
+                                    .stroke(Color.primary.opacity(0.2), lineWidth: 1.5)
                             )
-                            .shadow(color: Color.black.opacity(0.18), radius: 4, y: 2)
+                            .shadow(color: Color.black.opacity(0.12), radius: 4, y: 2)
 
-                        // Inner Dynamic Core Dot
+                        // Inner Core Dot
                         Circle()
-                            .fill(celestialColor)
+                            .fill(Color.primary)
                             .frame(width: 10, height: 10)
                     }
                     .offset(x: knobX)
@@ -140,19 +134,19 @@ struct SolarDaylightArcPicker: View {
             }
             .frame(height: 44)
 
-            // 3. Time Labels (12 AM · 6 AM · 12 PM · 6 PM · 12 AM)
+            // 3. Celestial Phase Markers (Night · Dawn · Midday · Dusk · Night)
             HStack {
-                Text("12 AM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                Image(systemName: "moon.fill").font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
-                Text("6 AM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                Image(systemName: "sunrise.fill").font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
-                Text("12 PM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                Image(systemName: "sun.max.fill").font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
-                Text("6 PM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                Image(systemName: "sunset.fill").font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
-                Text("12 AM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                Image(systemName: "moon.fill").font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 2)
+            .padding(.horizontal, 4)
         }
         .padding(.vertical, 10)
     }

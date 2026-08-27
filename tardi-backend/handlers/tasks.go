@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"tardi-backend/config"
 	"tardi-backend/crypto"
-	"tardi-backend/db"
 )
 
 type SealTaskRequest struct {
@@ -42,7 +40,7 @@ var AllowedPledges = map[int64]bool{
 	10000: true, // $100.00 (Hard Max)
 }
 
-func HandleSealTask(store *db.Store, cfg *config.Config) http.HandlerFunc {
+func HandleSealTask(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req SealTaskRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -99,35 +97,6 @@ func HandleSealTask(store *db.Store, cfg *config.Config) http.HandlerFunc {
 
 		// Defense 4: Compute Server-Side HMAC Seal
 		seal := crypto.GeneratePledgeSeal(req.TaskID, req.UserID, req.PledgeAmountCents, cfg.PledgeHMACSecret)
-
-		now := time.Now().UTC()
-		// Save task in store
-		store.SaveTask(&db.TaskRecord{
-			ID:                req.TaskID,
-			UserID:            req.UserID,
-			LocationName:      req.LocationName,
-			TaskTitle:         req.TaskTitle,
-			PledgeAmountCents: req.PledgeAmountCents,
-			HMACSeal:          seal,
-			IsActive:          true,
-			CreatedAt:         now,
-		})
-
-		// If a deadline timestamp was provided, schedule the evaluation slot
-		if req.DeadlineUTC != "" {
-			if parsedDeadline, err := time.Parse(time.RFC3339, req.DeadlineUTC); err == nil {
-				store.SaveEvaluation(&db.EvaluationRecord{
-					ID:           fmt.Sprintf("eval_%d", now.UnixNano()),
-					TaskID:       req.TaskID,
-					UserID:       req.UserID,
-					DeadlineDate: parsedDeadline.Format("2006-01-02"),
-					DeadlineUTC:  parsedDeadline,
-					Status:       "PENDING",
-					AmountCents:  req.PledgeAmountCents,
-					CreatedAt:    now,
-				})
-			}
-		}
 
 		respondJSON(w, http.StatusOK, SealTaskResponse{
 			Success:           true,

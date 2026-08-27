@@ -180,9 +180,9 @@ struct TardiPaymentSheet: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.black, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .foregroundStyle(.white)
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.2), lineWidth: 1))
+            .background(Color.primary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .foregroundStyle(Color(.systemBackground))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
         }
         .disabled(isProcessing)
         .buttonStyle(.plain)

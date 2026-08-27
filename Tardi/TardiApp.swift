@@ -1,5 +1,10 @@
 import SwiftUI
 import SwiftData
+#if canImport(StripePaymentSheet)
+import StripePaymentSheet
+#elseif canImport(Stripe)
+import Stripe
+#endif
 
 @main
 struct TardiApp: App {
@@ -7,6 +12,14 @@ struct TardiApp: App {
     let container: ModelContainer
 
     init() {
+        // Stripe Publishable Key Initialization
+        let stripePublishableKey = "pk_test_51U70crFqnsvKjM8mrYGWGwvuz1lDThA9R7dQPyPYfiFb4sqoz86FH2uPgqivUsuA9MZVU7OxqPqRQPrfoHghfpqa00LxKf0K8l"
+        #if canImport(StripePaymentSheet)
+        StripeAPI.defaultPublishableKey = stripePublishableKey
+        #elseif canImport(Stripe)
+        StripeAPI.defaultPublishableKey = stripePublishableKey
+        #endif
+
         let schema = Schema([LocationNode.self, HabitTask.self, CheckInRecord.self])
         do {
             container = try ModelContainer(for: schema)

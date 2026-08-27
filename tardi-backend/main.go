@@ -6,10 +6,8 @@ import (
 	"net/http"
 
 	"tardi-backend/config"
-	"tardi-backend/db"
 	"tardi-backend/handlers"
 	"tardi-backend/middleware"
-	"tardi-backend/worker"
 
 	"github.com/stripe/stripe-go/v78"
 )
@@ -27,10 +25,6 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// Initialize In-Memory Store & Background Worker
-	store := db.NewStore()
-	worker.StartDeadlineWorker(store, cfg)
-
 	// Health check
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -39,11 +33,14 @@ func main() {
 	})
 
 	// API v1 Routes
-	mux.HandleFunc("POST /api/v1/vault/setup-intent", handlers.HandleCreateSetupIntent(store, cfg))
-	mux.HandleFunc("POST /api/v1/tasks/seal", handlers.HandleSealTask(store, cfg))
-	mux.HandleFunc("POST /api/v1/evaluations/forfeit", handlers.HandleForfeit(store, cfg))
-	mux.HandleFunc("GET /api/v1/user/account-status", handlers.HandleAccountStatus(store, cfg))
-	mux.HandleFunc("POST /api/v1/user/settle-debt", handlers.HandleSettleDebt(store, cfg))
+	mux.HandleFunc("POST /api/v1/vault/setup-intent", handlers.HandleCreateSetupIntent(cfg))
+	mux.HandleFunc("POST /api/v1/vault/create-payment-intent", handlers.HandleCreatePreAuthPaymentIntent(cfg))
+	mux.HandleFunc("POST /api/v1/vault/cancel-payment-intent", handlers.HandleCancelPaymentIntent(cfg))
+	mux.HandleFunc("POST /api/v1/vault/capture-payment-intent", handlers.HandleCapturePaymentIntent(cfg))
+	mux.HandleFunc("POST /api/v1/tasks/seal", handlers.HandleSealTask(cfg))
+	mux.HandleFunc("POST /api/v1/evaluations/forfeit", handlers.HandleForfeit(cfg))
+	mux.HandleFunc("GET /api/v1/user/account-status", handlers.HandleAccountStatus(cfg))
+	mux.HandleFunc("POST /api/v1/user/settle-debt", handlers.HandleSettleDebt(cfg))
 
 	// Apply Middlewares
 	handler := middleware.CORS(middleware.Logger(mux))

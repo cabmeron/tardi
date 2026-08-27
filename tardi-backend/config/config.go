@@ -15,7 +15,7 @@ type Config struct {
 	IsTestMode       bool
 }
 
-// loadEnvFile automatically parses .env file if present
+// loadEnvFile automatically parses .env file if present in the current directory
 func loadEnvFile(filenames ...string) {
 	for _, filename := range filenames {
 		file, err := os.Open(filename)
@@ -36,6 +36,7 @@ func loadEnvFile(filenames ...string) {
 			if len(parts) == 2 {
 				key := strings.TrimSpace(parts[0])
 				val := strings.TrimSpace(parts[1])
+				// Strip surrounding quotes
 				val = strings.Trim(val, `"'`)
 				if os.Getenv(key) == "" {
 					os.Setenv(key, val)
@@ -79,3 +80,4 @@ func Load() *Config {
 		IsTestMode:       isTestMode,
 	}
 }
+
