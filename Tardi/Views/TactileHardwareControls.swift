@@ -9,6 +9,8 @@ import UIKit
 struct BurningFuseCountdownView: View {
     let progress: Double // 0.0 to 1.0 (1.0 = full time remaining, 0.0 = expired / deadline)
     let timeRemaining: TimeInterval
+    let pledgeAmount: Double
+    let isPledged: Bool
     let taskTitle: String?
     let isCompleted: Bool
     let totalStreak: Int
@@ -28,7 +30,7 @@ struct BurningFuseCountdownView: View {
     private let strokeWidth: CGFloat = 5
 
     private var emberAngleDegrees: Double {
-        -90.0 + (progress * 360.0)
+        -90.0 + (min(max(progress, 0.02), 0.98) * 360.0)
     }
 
     private var emberPosition: CGPoint {
@@ -79,69 +81,67 @@ struct BurningFuseCountdownView: View {
                 )
                 .shadow(color: Color.black.opacity(0.1), radius: 14, y: 6)
 
-            // 1. Etched Glass Track (Groove Channel)
+            // 1. Etched Glass Track (Groove Channel in Deep Black Tint)
             Circle()
                 .stroke(
-                    Color.secondary.opacity(0.14),
+                    Color.black.opacity(0.18),
                     style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round, dash: [3, 4])
                 )
                 .frame(width: ringRadius * 2, height: ringRadius * 2)
 
-            // 2. The Unburned Optical Fuse Cord (Monochrome Filament)
+            // 2. Solid Black Burning Fuse Cord Ring
             if taskTitle != nil, !isCompleted {
                 Circle()
-                    .trim(from: 0, to: CGFloat(progress))
+                    .trim(from: 0, to: CGFloat(max(progress, 0.03)))
                     .stroke(
-                        Color.primary.opacity(0.85),
+                        Color.black,
                         style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
                     )
                     .frame(width: ringRadius * 2, height: ringRadius * 2)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 1), value: progress)
 
-                // 3. The Animated Burning Spark / Ember Head (White-Hot with Amber Halo)
-                if progress > 0.005 && progress < 0.999 {
-                    ZStack {
-                        // Outer Pulsing Heat Halo
-                        Circle()
-                            .fill(Color.orange.opacity(emberFlicker ? 0.35 : 0.15))
-                            .frame(width: emberFlicker ? 22 : 16, height: emberFlicker ? 22 : 16)
-                            .blur(radius: 3)
+                // 3. The Animated Burning Spark / Ember Head (White-Hot with Fiery Glow)
+                ZStack {
+                    // Outer Pulsing Heat Halo
+                    Circle()
+                        .fill(Color.orange.opacity(emberFlicker ? 0.45 : 0.2))
+                        .frame(width: emberFlicker ? 24 : 16, height: emberFlicker ? 24 : 16)
+                        .blur(radius: 3.5)
 
-                        // Burning Amber Corona
-                        Circle()
-                            .fill(Color.orange)
-                            .frame(width: 8, height: 8)
-                            .shadow(color: Color.orange.opacity(0.9), radius: emberFlicker ? 5 : 3)
+                    // Burning Amber Corona
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 8.5, height: 8.5)
+                        .shadow(color: Color.orange.opacity(0.95), radius: emberFlicker ? 6 : 3)
 
-                        // White-Hot Ember Core
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 4, height: 4)
+                    // White-Hot Ember Core
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 4, height: 4)
 
-                        // Radiating Spark Flecks
-                        ForEach(0..<3) { i in
-                            Circle()
-                                .fill(Color.orange.opacity(emberFlicker ? 0.8 : 0.2))
-                                .frame(width: 1.5, height: 1.5)
-                                .offset(
-                                    x: CGFloat(Darwin.cos(Double(i) * 2.1 + (emberFlicker ? 1.0 : 0.0))) * 7,
-                                    y: CGFloat(Darwin.sin(Double(i) * 2.1 + (emberFlicker ? 1.0 : 0.0))) * 7
-                                )
-                        }
+                    // Radiating Spark Flecks
+                    ForEach(0..<3) { i in
+                        Circle()
+                            .fill(Color.orange.opacity(emberFlicker ? 0.85 : 0.25))
+                            .frame(width: 1.5, height: 1.5)
+                            .offset(
+                                x: CGFloat(Darwin.cos(Double(i) * 2.1 + (emberFlicker ? 1.0 : 0.0))) * 7,
+                                y: CGFloat(Darwin.sin(Double(i) * 2.1 + (emberFlicker ? 1.0 : 0.0))) * 7
+                            )
                     }
-                    .offset(x: emberPosition.x, y: emberPosition.y)
-                    .animation(.easeInOut(duration: 0.18).repeatForever(autoreverses: true), value: emberFlicker)
                 }
+                .offset(x: emberPosition.x, y: emberPosition.y)
+                .animation(.easeInOut(duration: 0.18).repeatForever(autoreverses: true), value: emberFlicker)
             } else if isCompleted {
-                // Completed Ring: Crisp Minimal Black / Primary Seal
+                // Completed Ring: Solid Black Seal
                 Circle()
-                    .stroke(Color.primary, style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round))
+                    .stroke(Color.black, style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round))
                     .frame(width: ringRadius * 2, height: ringRadius * 2)
             }
 
-            // 4. Clean Monochromatic Telemetry Center
-            VStack(spacing: 6) {
+            // 4. Center Telemetry: EXACTLY 3 Core Items Surrounded by Burning Ring
+            VStack(spacing: 7) {
                 if isCompleted {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 36))
@@ -152,72 +152,62 @@ struct BurningFuseCountdownView: View {
                         .foregroundStyle(.primary)
                         .tracking(1)
 
-                    if totalStreak > 0 {
-                        HStack(spacing: 3) {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.orange)
-                            Text("\(totalStreak)d Streak")
-                                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                } else if let title = taskTitle {
-                    // Task Title
-                    Text(title.uppercased())
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                    Text("STAKE SECURED")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
                         .tracking(1)
-                        .lineLimit(1)
-
-                    // Travel Duration ETA & Distance from User to Node
-                    if let eta = transitETA, let icon = transitModeIcon {
-                        HStack(spacing: 4) {
-                            Image(systemName: icon)
-                                .font(.system(size: 11, weight: .bold))
-                            Text(eta)
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                            if let dist = distanceText {
-                                Text("·")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
-                                Text(dist)
-                                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .overlay(Capsule().stroke(Color.secondary.opacity(0.18), lineWidth: 0.5))
-                        .foregroundStyle(.primary)
-                    }
-
-                    // Streak Counter
-                    if totalStreak > 0 {
-                        HStack(spacing: 3) {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.orange)
-                            Text("\(totalStreak)d Streak")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                } else if taskTitle != nil {
+                    // ITEM 1: Amount of Money at Risk
+                    VStack(spacing: 0) {
+                        if pledgeAmount > 0 {
+                            Text("$\(Int(pledgeAmount))")
+                                .font(.system(size: 32, weight: .black, design: .rounded))
                                 .foregroundStyle(.primary)
+
+                            Text("AT RISK")
+                                .font(.system(size: 9, weight: .black, design: .monospaced))
+                                .foregroundStyle(Color.red.opacity(0.9))
+                                .tracking(1.5)
+                        } else {
+                            Text("$0")
+                                .font(.system(size: 28, weight: .black, design: .rounded))
+                                .foregroundStyle(.primary)
+
+                            Text("AT RISK")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .tracking(1.2)
                         }
                     }
 
-                    // Presence Pill (Frosted Glass Badge)
+                    Divider()
+                        .frame(width: 36)
+                        .opacity(0.3)
+
+                    // ITEM 2: Current Distance Away in Miles
+                    VStack(spacing: 1) {
+                        Text(distanceText ?? "0.0 mi")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text("DISTANCE")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .tracking(1)
+                    }
+
+                    // ITEM 3: Time Away & Mode of Transit
                     HStack(spacing: 4) {
-                        Circle()
-                            .fill(isInsideLocation ? Color.primary : Color.secondary)
-                            .frame(width: 5, height: 5)
-                        Text(isInsideLocation ? "At Location" : "Away")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .foregroundStyle(isInsideLocation ? .primary : .secondary)
+                        Image(systemName: transitModeIcon ?? "figure.walk")
+                            .font(.system(size: 10, weight: .bold))
+
+                        Text(transitETA != nil ? "\(transitETA!) away" : "Nearby")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 3.5)
                     .background(.ultraThinMaterial, in: Capsule())
-                    .overlay(Capsule().stroke(Color.secondary.opacity(0.18), lineWidth: 0.5))
+                    .overlay(Capsule().stroke(Color.secondary.opacity(0.2), lineWidth: 0.5))
+                    .foregroundStyle(.primary)
                 } else {
                     Image(systemName: "plus.circle.dashed")
                         .font(.system(size: 30))
@@ -235,7 +225,7 @@ struct BurningFuseCountdownView: View {
                     }
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 20)
         }
         .frame(height: 220)
         .onAppear {

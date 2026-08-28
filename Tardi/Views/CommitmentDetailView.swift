@@ -151,10 +151,14 @@ struct CommitmentDetailView: View {
         let timeRemaining = nearest?.timeRemaining(asOf: now) ?? 0
         let distance = calculatedDistance
         let totalStreak = node.tasks.reduce(0) { $0 + $1.streak }
+        let pledgeAmount = nearest?.pledgeAmount ?? 0.0
+        let isPledged = nearest?.isPledged ?? false
 
         return BurningFuseCountdownView(
             progress: progress,
             timeRemaining: timeRemaining,
+            pledgeAmount: pledgeAmount,
+            isPledged: isPledged,
             taskTitle: nearest?.title,
             isCompleted: isDone,
             totalStreak: totalStreak,
