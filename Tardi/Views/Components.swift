@@ -47,15 +47,15 @@ struct FuseRingDot: View {
 
         ZStack {
             if isArmed {
-                // 1. Burnt ash track (braided dashed circle)
+                // 1. Burnt ash track (braided dashed circle in deep black tint)
                 Circle()
-                    .stroke(Color.secondary.opacity(0.18), style: StrokeStyle(lineWidth: 2.5, dash: [2, 2]))
+                    .stroke(Color.black.opacity(0.25), style: StrokeStyle(lineWidth: 2.5, dash: [2, 2]))
                     .frame(width: 34, height: 34)
 
-                // 2. Monochrome physical fuse cord
+                // 2. Solid black physical fuse cord ring
                 Circle()
                     .trim(from: 0, to: CGFloat(progress))
-                    .stroke(Color.primary.opacity(0.85), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .stroke(Color.black, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                     .frame(width: 34, height: 34)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 1), value: progress)
@@ -76,21 +76,21 @@ struct FuseRingDot: View {
                         .offset(x: x, y: y)
                 }
 
-                // Center core dot
+                // Solid black center core dot
                 Circle()
-                    .fill(Color.primary)
+                    .fill(Color.black)
                     .frame(width: 12, height: 12)
-                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
+                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
             } else {
-                // Default State: Clean lined circle with center dot (no checks, no failures)
+                // Default State: Solid black ring and solid black center dot
                 Circle()
-                    .stroke(Color.secondary.opacity(0.35), lineWidth: 1.5)
+                    .stroke(Color.black, lineWidth: 2)
                     .frame(width: 28, height: 28)
 
                 Circle()
-                    .fill(Color.secondary.opacity(0.7))
+                    .fill(Color.black)
                     .frame(width: 10, height: 10)
-                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
+                    .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
             }
         }
         .contentShape(Circle())
@@ -188,7 +188,7 @@ struct NodeMarkerView: View {
             ZStack {
                 if node.isCurrentlyInside {
                     Circle()
-                        .stroke(Color.primary.opacity(0.25), lineWidth: 2)
+                        .stroke(Color.black.opacity(0.35), lineWidth: 2)
                         .frame(width: isPulsing ? 44 : 30, height: isPulsing ? 44 : 30)
                         .scaleEffect(isPulsing ? 1.2 : 0.9)
                         .opacity(isPulsing ? 0 : 0.8)
@@ -234,22 +234,22 @@ struct DraftNodeMarkerView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Color.accentColor, in: Capsule())
-            .shadow(color: Color.accentColor.opacity(0.4), radius: 6, y: 2)
+            .background(Color.black, in: Capsule())
+            .shadow(color: Color.black.opacity(0.3), radius: 6, y: 2)
 
             ZStack {
                 Circle()
-                    .fill(Color.accentColor.opacity(0.2))
+                    .fill(Color.black.opacity(0.15))
                     .frame(width: pulse ? 44 : 28, height: pulse ? 44 : 28)
 
                 Circle()
-                    .stroke(Color.accentColor, lineWidth: 2)
+                    .stroke(Color.black, lineWidth: 2)
                     .frame(width: 28, height: 28)
 
                 Circle()
-                    .fill(Color.accentColor)
+                    .fill(Color.black)
                     .frame(width: 14, height: 14)
-                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
+                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
             }
             .frame(width: 36, height: 36)
 
