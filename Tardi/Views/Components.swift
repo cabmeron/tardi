@@ -35,7 +35,7 @@ struct PresenceDot: View {
 }
 
 /// A location node's map marker: a clean lined circle when unassigned,
-/// or a physical burning fuse ring indicator when a task is armed.
+/// or a dynamic burning fuse countdown ring displaying relative urgency when a task is armed.
 struct FuseRingDot: View {
     let node: LocationNode
     let now: Date
@@ -43,40 +43,59 @@ struct FuseRingDot: View {
     var body: some View {
         let isDone = node.isAnyTaskCompletedToday(asOf: now)
         let isArmed = !node.activeTasks.isEmpty && !isDone
-        let progress = node.fuseProgress(asOf: now) ?? 0
+        let nearestTask = node.nearestUpcomingTask(after: now)
+        let remaining = nearestTask?.timeRemaining(asOf: now) ?? 0
+        let progress = node.fuseProgress(asOf: now) ?? (isArmed ? 0.75 : 0)
+
+        // Relative urgency thresholds
+        let isCritical = remaining > 0 && remaining <= 1800 // < 30m: Critical urgency
+        let isHighUrgency = remaining > 0 && remaining <= 7200 // < 2h: High urgency
 
         ZStack {
             if isArmed {
                 // 1. Burnt ash track (braided dashed circle in deep black tint)
                 Circle()
-                    .stroke(Color.black.opacity(0.25), style: StrokeStyle(lineWidth: 2.5, dash: [2, 2]))
+                    .stroke(Color.black.opacity(0.20), style: StrokeStyle(lineWidth: 2.5, dash: [2, 2]))
                     .frame(width: 34, height: 34)
 
-                // 2. Solid black physical fuse cord ring
+                // 2. Solid black physical fuse cord ring (Remaining countdown cord)
                 Circle()
-                    .trim(from: 0, to: CGFloat(progress))
+                    .trim(from: 0, to: CGFloat(max(progress, 0.03)))
                     .stroke(Color.black, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                     .frame(width: 34, height: 34)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 1), value: progress)
 
-                // 3. Burning Ember Head
-                if progress > 0.02 && progress < 0.98 {
-                    let angleDeg = -90.0 + (progress * 360.0)
-                    let rad = angleDeg * .pi / 180.0
-                    let r: CGFloat = 17.0
-                    let x = CGFloat(Darwin.cos(rad)) * r
-                    let y = CGFloat(Darwin.sin(rad)) * r
+                // 3. Dynamic Burning Ember Head (ALWAYS visible at the tip when armed!)
+                let clampedProgress = min(max(progress, 0.03), 0.97)
+                let angleDeg = -90.0 + (clampedProgress * 360.0)
+                let rad = angleDeg * .pi / 180.0
+                let r: CGFloat = 17.0
+                let x = CGFloat(Darwin.cos(rad)) * r
+                let y = CGFloat(Darwin.sin(rad)) * r
 
+                ZStack {
+                    // Outer heat aura / urgency glow
                     Circle()
-                        .fill(Color.orange)
-                        .frame(width: 4.5, height: 4.5)
-                        .shadow(color: Color.orange, radius: 2)
-                        .overlay(Circle().fill(Color.white).frame(width: 2, height: 2))
-                        .offset(x: x, y: y)
-                }
+                        .fill(isCritical ? Color.red : (isHighUrgency ? Color.orange : Color.yellow))
+                        .frame(width: isCritical ? 11 : 8, height: isCritical ? 11 : 8)
+                        .blur(radius: isCritical ? 2.5 : 1.5)
+                        .opacity(0.85)
 
-                // Solid black center core dot
+                    // Sizzling ember core
+                    Circle()
+                        .fill(isCritical ? Color.red : Color.orange)
+                        .frame(width: 5, height: 5)
+                        .shadow(color: isCritical ? Color.red : Color.orange, radius: 3)
+
+                    // White-hot center spark
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 2.2, height: 2.2)
+                }
+                .offset(x: x, y: y)
+
+                // Solid black center core dot with crisp white border
                 Circle()
                     .fill(Color.black)
                     .frame(width: 12, height: 12)
@@ -151,61 +170,69 @@ struct NodeMarkerView: View {
 
     @State private var isPulsing = false
 
-    private var distanceMeters: Double? {
-        guard let userCoordinate else { return nil }
-        let userLoc = CLLocation(latitude: userCoordinate.latitude, longitude: userCoordinate.longitude)
-        let nodeLoc = CLLocation(latitude: node.latitude, longitude: node.longitude)
-        return userLoc.distance(from: nodeLoc)
-    }
-
-    private var isDone: Bool {
-        node.isAnyTaskCompletedToday(asOf: now)
-    }
-
-    private var isArmed: Bool {
-        !node.activeTasks.isEmpty && !isDone
-    }
-
     var body: some View {
-        VStack(spacing: 3) {
-            // Optional minimal travel ETA pill (only travel duration from where you are to node)
-            if showDetailCard, isArmed, let distance = distanceMeters, !node.isCurrentlyInside {
-                HStack(spacing: 3) {
-                    Image(systemName: node.travelMode.iconName)
-                        .font(.system(size: 9, weight: .bold))
-                    Text(node.travelMode.formattedETA(distanceMeters: distance))
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+            let currentNow = timeline.date
+            let isDone = node.isAnyTaskCompletedToday(asOf: currentNow)
+            let isArmed = !node.activeTasks.isEmpty && !isDone
+            let nearest = node.nearestUpcomingTask(after: currentNow)
+            let remaining = nearest?.timeRemaining(asOf: currentNow) ?? 0
+
+            VStack(spacing: 3) {
+                // Urgency & Travel ETA Pill
+                if showDetailCard && isArmed {
+                    HStack(spacing: 4) {
+                        if let nearest, nearest.isPledged && nearest.pledgeAmount > 0 {
+                            Text("$\(Int(nearest.pledgeAmount))")
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .foregroundStyle(remaining <= 1800 ? Color.red : Color.orange)
+                        }
+
+                        // Urgency Flame Icon
+                        Image(systemName: remaining <= 1800 ? "flame.fill" : (remaining <= 7200 ? "flame" : "timer"))
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(remaining <= 1800 ? Color.red : (remaining <= 7200 ? Color.orange : Color.primary))
+
+                        // Relative countdown / phase text
+                        Text(nearest?.formattedTimeRemaining(asOf: currentNow) ?? "Armed")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(
+                        Capsule().stroke(
+                            remaining <= 1800 ? Color.red.opacity(0.5) : (remaining <= 7200 ? Color.orange.opacity(0.4) : Color.secondary.opacity(0.18)),
+                            lineWidth: remaining <= 1800 ? 1.2 : 0.6
+                        )
+                    )
+                    .foregroundStyle(.primary)
+                    .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2.5)
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().stroke(Color.secondary.opacity(0.18), lineWidth: 0.5))
-                .foregroundStyle(.primary)
-                .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
-            }
 
-            // Center Node with Fuse Ring & Presence Pulse
-            ZStack {
-                if node.isCurrentlyInside {
-                    Circle()
-                        .stroke(Color.black.opacity(0.35), lineWidth: 2)
-                        .frame(width: isPulsing ? 44 : 30, height: isPulsing ? 44 : 30)
-                        .scaleEffect(isPulsing ? 1.2 : 0.9)
-                        .opacity(isPulsing ? 0 : 0.8)
+                // Center Node with Fuse Ring & Presence Pulse
+                ZStack {
+                    if node.isCurrentlyInside {
+                        Circle()
+                            .stroke(Color.black.opacity(0.35), lineWidth: 2)
+                            .frame(width: isPulsing ? 44 : 30, height: isPulsing ? 44 : 30)
+                            .scaleEffect(isPulsing ? 1.2 : 0.9)
+                            .opacity(isPulsing ? 0 : 0.8)
+                    }
+
+                    FuseRingDot(node: node, now: currentNow)
                 }
+                .frame(width: 36, height: 36)
 
-                FuseRingDot(node: node, now: now)
+                // Location title
+                Text(node.name)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
             }
-            .frame(width: 36, height: 36)
-
-            // Location title
-            Text(node.name)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
         }
         .onAppear {
             if node.isCurrentlyInside {

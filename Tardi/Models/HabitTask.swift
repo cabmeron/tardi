@@ -146,14 +146,25 @@ final class HabitTask {
         }
     }
 
+    /// Calculates the burning countdown progress (1.0 = full cord at start, burns down to 0.0 at deadline).
+    /// Uses a responsive urgency curve so that whether a task is 8 hours away or 30 minutes away,
+    /// the burning ember and cord length accurately reflect relative urgency.
     func fuseProgress(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Double? {
         if isCompletedForToday(asOf: referenceDate) {
             return 1.0
         }
         guard let deadline = nextDeadline(after: referenceDate, calendar: calendar) else { return nil }
-        let window: TimeInterval = 24 * 60 * 60
         let remaining = deadline.timeIntervalSince(referenceDate)
-        return min(max(remaining / window, 0), 1)
+        guard remaining > 0 else { return 0.0 }
+
+        // Dynamic urgency scale over a 12-hour active burn window
+        let maxWindow: TimeInterval = 12 * 3600
+        if remaining >= maxWindow {
+            return 0.95
+        }
+        let ratio = remaining / maxWindow
+        let progress = pow(ratio, 0.75)
+        return min(max(progress, 0.04), 0.96)
     }
 
     func isCompletedForToday(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Bool {
