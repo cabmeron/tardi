@@ -501,23 +501,22 @@ struct ActiveDaysSwitchboardPicker: View {
             }
             .padding(.horizontal, 2)
 
-            // 2. 80% / 20% Neumorphic Layout: Left is ALWAYS 7 Switches, Right is Rotary Time Pill!
+            // 2. Symmetrical Layout: Equal distance from left and right edges of parent container
             GeometryReader { geometry in
                 let totalWidth = geometry.size.width
                 let height: CGFloat = 88
-                let spacing: CGFloat = 10
-                let availableWidth = max(totalWidth - spacing, 1.0)
-                let leftWidth = availableWidth * 0.78
-                let rightWidth = availableWidth * 0.22
+                let dialWidth: CGFloat = 46 // 16 (ticks) + 4 (spacing) + 26 (barrel)
+                let spacing: CGFloat = 12
+                let leftWidth = max(totalWidth - dialWidth - spacing, 1.0)
 
                 HStack(spacing: spacing) {
-                    // LEFT ~80%: 7 Mechanical Rocker Day Switches (Mon..Sun)
+                    // LEFT: 7 Mechanical Rocker Day Switches (Mon..Sun)
                     NeumorphicWeeklySwitchboardView(selectedWeekdays: $selectedWeekdays)
-                        .frame(width: leftWidth, height: height, alignment: .center)
+                        .frame(width: leftWidth, height: height, alignment: .leading)
 
-                    // RIGHT ~20%: Vertical Infinite Rotary Time Dial Pill
+                    // RIGHT: Vertical Infinite Rotary Time Dial Pill
                     NeumorphicVerticalTimePillView(time: isOneTime ? $oneTimeDate : $deadlineTime)
-                        .frame(width: rightWidth, height: height, alignment: .center)
+                        .frame(width: dialWidth, height: height, alignment: .trailing)
                 }
             }
             .frame(height: 88)
@@ -961,23 +960,22 @@ struct TactileDateTimeCompositePicker: View {
             }
             .padding(.horizontal, 4)
 
-            // 2. 80% / 20% Neumorphic Layout
+            // 2. Symmetrical Layout: Equal distance from left and right edges of parent container
             GeometryReader { geometry in
                 let totalWidth = geometry.size.width
                 let height: CGFloat = 88
-                let spacing: CGFloat = 10
-                let availableWidth = max(totalWidth - spacing, 1.0)
-                let dateWidth = availableWidth * 0.78
-                let timeWidth = availableWidth * 0.22
+                let dialWidth: CGFloat = 46
+                let spacing: CGFloat = 12
+                let dateWidth = max(totalWidth - dialWidth - spacing, 1.0)
 
                 HStack(spacing: spacing) {
-                    // Left ~80%: Horizontal Date Slider
+                    // Left: Horizontal Date Slider
                     NeumorphicDateTrackView(selectedDate: $selectedDate)
-                        .frame(width: dateWidth, height: height, alignment: .center)
+                        .frame(width: dateWidth, height: height, alignment: .leading)
 
-                    // Right ~20%: Vertical Time Scrollable Pill
+                    // Right: Vertical Time Scrollable Pill
                     NeumorphicVerticalTimePillView(time: $selectedTime)
-                        .frame(width: timeWidth, height: height, alignment: .center)
+                        .frame(width: dialWidth, height: height, alignment: .trailing)
                 }
             }
             .frame(height: 88)
@@ -1179,13 +1177,12 @@ struct NeumorphicVerticalTimePillView: View {
     private var calendar: Calendar { .current }
 
     private let ribHeight: CGFloat = 6.0 // Distance between physical ridges
-    private let minutesPerRib: Int = 5 // 5 minutes per mechanical detent
+    private let minutesPerRib: Int = 5 // Standard 5 minutes per mechanical detent
 
     var body: some View {
         GeometryReader { geo in
             let totalHeight = geo.size.height
-            let totalWidth = geo.size.width
-            let wheelWidth: CGFloat = min(totalWidth - 14, 26)
+            let wheelWidth: CGFloat = 26
 
             HStack(spacing: 4) {
                 // Micro-engraved tick landmark dots / minute notches
@@ -1336,6 +1333,7 @@ struct NeumorphicVerticalTimePillView: View {
                         }
                 )
             }
+            .frame(width: geo.size.width, height: totalHeight, alignment: .trailing)
         }
         .onDisappear {
             stopInertialSpin()
