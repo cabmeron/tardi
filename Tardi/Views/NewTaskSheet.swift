@@ -32,9 +32,9 @@ struct NewTaskSheet: View {
                             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
 
-                    // 2. Active Days Switchboard
+                    // 2. Schedule & Deadline Controller (80% Schedule / 20% Time Pill)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("ACTIVE DAYS SWITCHBOARD")
+                        Text("SCHEDULE & DEADLINE")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.secondary)
                             .tracking(1)
@@ -42,19 +42,12 @@ struct NewTaskSheet: View {
                         ActiveDaysSwitchboardPicker(
                             selectedWeekdays: $selectedWeekdays,
                             isOneTime: $isOneTime,
-                            oneTimeDate: $oneTimeDate
+                            oneTimeDate: $oneTimeDate,
+                            deadlineTime: $deadlineTime
                         )
                         .padding(14)
                         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
-
-                    // 3. Solar Daylight Arc Picker
-                    VStack(alignment: .center, spacing: 8) {
-                        SolarDaylightArcPicker(time: $deadlineTime)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(14)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                     // 4. Financial Pledge Stake (Money at Risk)
                     VStack(alignment: .leading, spacing: 8) {
@@ -99,8 +92,9 @@ struct NewTaskSheet: View {
 
     private func saveTask() {
         let calendar = Calendar.current
-        let hour = calendar.component(.hour, from: deadlineTime)
-        let minute = calendar.component(.minute, from: deadlineTime)
+        let timeSource = isOneTime ? oneTimeDate : deadlineTime
+        let hour = calendar.component(.hour, from: timeSource)
+        let minute = calendar.component(.minute, from: timeSource)
 
         let task = HabitTask(
             title: taskTitle.trimmingCharacters(in: .whitespacesAndNewlines),

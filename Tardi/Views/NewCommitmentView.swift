@@ -85,6 +85,7 @@ struct NewCommitmentView: View {
                             .tracking(1)
                             Spacer()
                             Toggle("", isOn: $addInitialTask)
+                                .tint(Color.black)
                                 .labelsHidden()
                         }
 
@@ -98,11 +99,9 @@ struct NewCommitmentView: View {
                                 ActiveDaysSwitchboardPicker(
                                     selectedWeekdays: $selectedWeekdays,
                                     isOneTime: $isOneTime,
-                                    oneTimeDate: $oneTimeDate
+                                    oneTimeDate: $oneTimeDate,
+                                    deadlineTime: $deadlineTime
                                 )
-
-                                SolarDaylightArcPicker(time: $deadlineTime)
-                                    .padding(.vertical, 4)
 
                                 Divider()
 
@@ -161,8 +160,9 @@ struct NewCommitmentView: View {
 
         if addInitialTask {
             let calendar = Calendar.current
-            let hour = calendar.component(.hour, from: deadlineTime)
-            let minute = calendar.component(.minute, from: deadlineTime)
+            let timeSource = isOneTime ? oneTimeDate : deadlineTime
+            let hour = calendar.component(.hour, from: timeSource)
+            let minute = calendar.component(.minute, from: timeSource)
             let effectiveTitle = taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Arrival Deadline" : taskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
 
             let task = HabitTask(
