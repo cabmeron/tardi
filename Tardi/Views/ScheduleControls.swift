@@ -1315,33 +1315,45 @@ struct NeumorphicVerticalTimePillView: View {
 
     private let totalHeight: CGFloat = 79
     private let wheelWidth: CGFloat = 26
+    private let readoutWidth: CGFloat = 52
 
     var body: some View {
-        HStack(spacing: 4) {
-            // Micro-engraved tick landmark dots / minute notches
-            VStack(spacing: 0) {
-                let displayHour = calendar.component(.hour, from: time)
-                let hour12 = displayHour % 12 == 0 ? 12 : displayHour % 12
-                let period = displayHour >= 12 ? "P" : "A"
+        HStack(spacing: 6) {
+            // High-Visibility Digital Time Readout Card
+            let displayHour = calendar.component(.hour, from: time)
+            let hour12 = displayHour % 12 == 0 ? 12 : displayHour % 12
+            let minute = calendar.component(.minute, from: time)
+            let period = displayHour >= 12 ? "PM" : "AM"
 
-                Text("\(hour12)\(period)")
-                    .font(.system(size: 8, weight: .black, design: .monospaced))
-                    .foregroundStyle(Color.black)
-
-                Spacer()
-
-                Rectangle()
-                    .fill(Color.black)
-                    .frame(width: 5, height: 1.5)
-
-                Spacer()
-
-                let m = calendar.component(.minute, from: time)
-                Text(String(format: ":%02d", m))
-                    .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+            VStack(spacing: 2) {
+                // Period Badge (PM / AM)
+                Text(period)
+                    .font(.system(size: 8.5, weight: .black, design: .monospaced))
                     .foregroundStyle(Color.secondary)
+
+                // Large Bold Digital Time (e.g. 10:30)
+                Text(String(format: "%d:%02d", hour12, minute))
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundStyle(Color.black)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                // Subtitle
+                Text("TIME")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color.secondary.opacity(0.8))
+                    .tracking(1.0)
             }
-            .frame(width: 16, height: totalHeight - 6)
+            .frame(width: readoutWidth, height: 60)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.12), radius: 2, y: 1)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.black.opacity(0.18), lineWidth: 1.2)
+            )
 
             // The Infinite Ribbed Rotating Barrel Wheel
             ZStack {
@@ -1466,7 +1478,7 @@ struct NeumorphicVerticalTimePillView: View {
                     }
             )
         }
-        .frame(width: 16 + 4 + wheelWidth, height: totalHeight, alignment: .center)
+        .frame(width: readoutWidth + 6 + wheelWidth, height: totalHeight, alignment: .center)
         .onDisappear {
             stopInertialSpin()
         }
