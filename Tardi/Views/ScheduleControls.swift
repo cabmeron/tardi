@@ -388,26 +388,6 @@ struct ActiveDaysSwitchboardPicker: View {
     private let heavyHaptic = UIImpactFeedbackGenerator(style: .heavy)
     private var calendar: Calendar { .current }
 
-    private var formattedDateOrDays: String {
-        if selectedWeekdays.count == 7 {
-            return "EVERY DAY"
-        } else if selectedWeekdays == [2, 3, 4, 5, 6] {
-            return "WEEKDAYS"
-        } else if selectedWeekdays == [1, 7] {
-            return "WEEKENDS"
-        } else {
-            let dayMap: [Int: String] = [2: "MON", 3: "TUE", 4: "WED", 5: "THU", 6: "FRI", 7: "SAT", 1: "SUN"]
-            let sorted = [2, 3, 4, 5, 6, 7, 1].filter { selectedWeekdays.contains($0) }.compactMap { dayMap[$0] }
-            return sorted.isEmpty ? "SELECT DAYS" : sorted.joined(separator: ", ")
-        }
-    }
-
-    private var formattedDeadlineTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: isOneTime ? oneTimeDate : deadlineTime)
-    }
-
     var body: some View {
         VStack(spacing: 12) {
             // 1. Repeat Weekly Mode Toggle + Tactile [ - ] N WEEKS [ + ] Stepper
@@ -466,7 +446,7 @@ struct ActiveDaysSwitchboardPicker: View {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                             isOneTime = !repeats
                             if repeats && selectedWeekdays.isEmpty {
-                                selectedWeekdays = [2, 3, 4, 5, 6]
+                                selectedWeekdays = [2]
                             }
                         }
                     }
@@ -475,51 +455,25 @@ struct ActiveDaysSwitchboardPicker: View {
                 .labelsHidden()
             }
 
-            // Dual Dynamic Status Header
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(formattedDateOrDays)
-                        .font(.system(size: 13, weight: .black, design: .rounded))
-                        .foregroundStyle(.primary)
-                    Text(!isOneTime ? "ACTIVE DAYS (\(repeatWeeks) \(repeatWeeks == 1 ? "WEEK" : "WEEKS"))" : "ACTIVE DAYS (SINGLE WEEK)")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .tracking(1.2)
-                }
+            // 2. Symmetrical Layout: Centered Single Day Slider + Rotary Time Dial
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
 
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(formattedDeadlineTime)
-                        .font(.system(size: 13, weight: .black, design: .rounded))
-                        .foregroundStyle(Color.black)
-                    Text("DEADLINE TIME")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .tracking(1.2)
-                }
-            }
-            .padding(.horizontal, 2)
-
-            // 2. Symmetrical Layout: Equal distance from left and right edges of parent container
-            GeometryReader { geometry in
-                let totalWidth = geometry.size.width
-                let height: CGFloat = 88
-                let dialWidth: CGFloat = 46 // 16 (ticks) + 4 (spacing) + 26 (barrel)
-                let spacing: CGFloat = 12
-                let leftWidth = max(totalWidth - dialWidth - spacing, 1.0)
-
-                HStack(spacing: spacing) {
-                    // LEFT: 7 Mechanical Rocker Day Switches (Mon..Sun)
-                    NeumorphicWeeklySwitchboardView(selectedWeekdays: $selectedWeekdays)
-                        .frame(width: leftWidth, height: height, alignment: .leading)
+                HStack(spacing: 12) {
+                    // LEFT: Single Day Horizontal Slider (Swipe left/right to move between days)
+                    NeumorphicSingleDaySliderView(
+                        selectedWeekdays: $selectedWeekdays,
+                        isOneTime: isOneTime,
+                        oneTimeDate: $oneTimeDate
+                    )
 
                     // RIGHT: Vertical Infinite Rotary Time Dial Pill
                     NeumorphicVerticalTimePillView(time: isOneTime ? $oneTimeDate : $deadlineTime)
-                        .frame(width: dialWidth, height: height, alignment: .trailing)
                 }
+
+                Spacer(minLength: 0)
             }
-            .frame(height: 88)
+            .frame(height: 79)
         }
         .padding(.vertical, 2)
     }
@@ -545,165 +499,345 @@ struct ActiveDaysSwitchboardPicker: View {
     }
 }
 
-/// The 7 tactile rocker switches for Monday..Sunday, formatted cleanly to fit the left 80% slot
-struct NeumorphicWeeklySwitchboardView: View {
+/// An authentic CS:GO style gamble roulette slider for selecting days and dates.
+/// Features a continuous horizontal tape of day cards scrolling under a prominent fixed center selector frame with indicator notches.
+/// Engineered for high-performance zero-allocation 60/120 FPS rendering during high-speed inertial spinning.
+struct NeumorphicSingleDaySliderView: View {
     @Binding var selectedWeekdays: Set<Int>
+    let isOneTime: Bool
+    @Binding var oneTimeDate: Date
 
-    @State private var dragIsSelecting: Bool?
-    @State private var previousDraggedIndex: Int = -1
+    struct DayCarouselItem: Identifiable, Equatable {
+        let id: Int // 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat, 1=Sun
+        let dayName: String
+        let shortName: String
+    }
 
-    private let haptic = UIImpactFeedbackGenerator(style: .medium)
+    struct DayCardDetails: Identifiable, Equatable {
+        let id: Int
+        let dayOfWeek: String
+        let dayNumber: String
+        let monthName: String
+    }
 
-    private let dayOrder: [(id: Int, short: String, label: String)] = [
-        (2, "M", "Mon"),
-        (3, "T", "Tue"),
-        (4, "W", "Wed"),
-        (5, "T", "Thu"),
-        (6, "F", "Fri"),
-        (7, "S", "Sat"),
-        (1, "S", "Sun")
+    private let dayList: [DayCarouselItem] = [
+        DayCarouselItem(id: 2, dayName: "MONDAY", shortName: "MON"),
+        DayCarouselItem(id: 3, dayName: "TUESDAY", shortName: "TUE"),
+        DayCarouselItem(id: 4, dayName: "WEDNESDAY", shortName: "WED"),
+        DayCarouselItem(id: 5, dayName: "THURSDAY", shortName: "THU"),
+        DayCarouselItem(id: 6, dayName: "FRIDAY", shortName: "FRI"),
+        DayCarouselItem(id: 7, dayName: "SATURDAY", shortName: "SAT"),
+        DayCarouselItem(id: 1, dayName: "SUNDAY", shortName: "SUN")
     ]
 
-    var body: some View {
-        GeometryReader { geometry in
-            let totalWidth = geometry.size.width
-            let slotWidth = totalWidth / 7.0
+    @State private var cachedDayDetails: [DayCardDetails] = []
+    @State private var accumulatedDrag: CGFloat = 0.0
+    @State private var lastDragX: CGFloat = 0.0
+    @State private var spinTimer: Timer? = nil
+    @State private var previousHapticDetent: Int = 0
+    @State private var activeIndex: Int = 0
 
-            HStack(spacing: 0) {
-                ForEach(Array(dayOrder.enumerated()), id: \.element.id) { index, item in
-                    let isActive = selectedWeekdays.contains(item.id)
-                    MechanicalSwitchCell(
-                        label: item.label.uppercased(),
-                        isActive: isActive,
-                        onTap: { toggleDay(item.id) }
-                    )
-                    .frame(width: slotWidth)
-                }
-            }
-            .frame(height: geometry.size.height, alignment: .center)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        handleSwitchboardDrag(at: value.location.x, slotWidth: slotWidth)
-                    }
-                    .onEnded { _ in
-                        dragIsSelecting = nil
-                        previousDraggedIndex = -1
-                    }
-            )
-        }
-        .frame(height: 88)
-    }
-
+    private let haptic = UIImpactFeedbackGenerator(style: .rigid)
     private let heavyHaptic = UIImpactFeedbackGenerator(style: .heavy)
+    private var calendar: Calendar { .current }
 
-    private func toggleDay(_ id: Int) {
-        heavyHaptic.impactOccurred(intensity: 1.0)
-        ASMRSoundEngine.shared.playThump()
-        withAnimation(.spring(response: 0.22, dampingFraction: 0.65)) {
-            if selectedWeekdays.contains(id) {
-                if selectedWeekdays.count > 1 {
-                    selectedWeekdays.remove(id)
+    private let cardWidth: CGFloat = 64.0
+    private let cardHeight: CGFloat = 60.0
+    private let strideWidth: CGFloat = 72.0 // Width between each card center
+    private let totalHeight: CGFloat = 79.0
+    private let sliderWidth: CGFloat = 245.0
+
+    var body: some View {
+        ZStack {
+            // 1. Debossed Housing Cavity
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.tertiarySystemGroupedBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.black.opacity(0.18), lineWidth: 1.2)
+                )
+
+            // 2. Continuous CS:GO Gamble Slider Reel (1 Left, 1 Center, 1 Right)
+            let continuousPos = -accumulatedDrag / strideWidth
+
+            ZStack {
+                ForEach(0..<dayList.count, id: \.self) { i in
+                    let wrappedDiff = wrappedDifference(index: i, continuousPos: continuousPos)
+
+                    if abs(wrappedDiff) < 2.5 {
+                        let details = cachedDayDetails.indices.contains(i)
+                            ? cachedDayDetails[i]
+                            : buildCardDetails(forWeekday: dayList[i].id)
+                        let dist = abs(wrappedDiff)
+                        let isExactCenter = dist < 0.35
+                        let xOffset = CGFloat(wrappedDiff) * strideWidth
+
+                        CSGODayCardItemView(
+                            details: details,
+                            dist: dist,
+                            isExactCenter: isExactCenter,
+                            xOffset: xOffset,
+                            cardWidth: cardWidth,
+                            cardHeight: cardHeight
+                        )
+                    }
                 }
-            } else {
-                selectedWeekdays.insert(id)
+            }
+            .frame(width: sliderWidth, height: totalHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+
+            // 3. Fixed CS:GO Center Selector Border & Indicator Needles
+            ZStack {
+                // High-Contrast Center Target Border Frame
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.black, lineWidth: 2.8)
+                    .frame(width: cardWidth + 4, height: cardHeight + 4)
+                    .shadow(color: Color.black.opacity(0.22), radius: 3, y: 1)
+
+                // Top & Bottom Target Indicator Arrows
+                VStack {
+                    Image(systemName: "arrowtriangle.down.fill")
+                        .font(.system(size: 7.5, weight: .black))
+                        .foregroundStyle(Color.black)
+                        .offset(y: -2.5)
+
+                    Spacer()
+
+                    Image(systemName: "arrowtriangle.up.fill")
+                        .font(.system(size: 7.5, weight: .black))
+                        .foregroundStyle(Color.black)
+                        .offset(y: 2.5)
+                }
+                .frame(height: cardHeight + 10)
+            }
+            .allowsHitTesting(false)
+        }
+        .frame(width: sliderWidth, height: totalHeight)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    stopInertialSpin()
+                    haptic.prepare()
+
+                    let delta = value.translation.width - lastDragX
+                    lastDragX = value.translation.width
+                    applyDragDelta(delta)
+                }
+                .onEnded { value in
+                    lastDragX = 0
+
+                    // Calculate fling velocity for inertial physics
+                    let velocityX = value.velocity.width
+                    let predictedDelta = value.predictedEndTranslation.width - value.translation.width
+                    let effectiveVelocity = abs(velocityX) > 50 ? velocityX : predictedDelta * 2.0
+
+                    if abs(effectiveVelocity) > 60 {
+                        startInertialSpin(initialVelocity: effectiveVelocity)
+                    } else {
+                        snapToNearestDetent()
+                    }
+                }
+        )
+        .onAppear {
+            warmUpCache()
+            syncInitialDay()
+        }
+        .onDisappear {
+            stopInertialSpin()
+        }
+    }
+
+    // MARK: - Inertial Physics Engine (60 FPS / 120 FPS RunLoop.common Mode)
+
+    private func applyDragDelta(_ deltaX: CGFloat) {
+        accumulatedDrag += deltaX
+
+        let totalDetents = Int(round(-accumulatedDrag / strideWidth))
+        if totalDetents != previousHapticDetent {
+            previousHapticDetent = totalDetents
+
+            let normIndex = ((totalDetents % dayList.count) + dayList.count) % dayList.count
+            if normIndex != activeIndex {
+                activeIndex = normIndex
+                let dayId = dayList[normIndex].id
+                selectedWeekdays = [dayId]
+                updateOneTimeDate(forWeekday: dayId)
+
+                haptic.impactOccurred(intensity: 0.75)
+                ASMRSoundEngine.shared.playTick(intensity: 0.7)
             }
         }
     }
 
-    private func handleSwitchboardDrag(at x: CGFloat, slotWidth: CGFloat) {
-        guard slotWidth > 0 else { return }
-        let rawIndex = Int(x / slotWidth)
-        guard rawIndex >= 0, rawIndex < 7 else { return }
+    private func startInertialSpin(initialVelocity: CGFloat) {
+        stopInertialSpin()
 
-        let dayId = dayOrder[rawIndex].id
+        var currentVelocity = initialVelocity
+        let friction: CGFloat = 0.93
+        let timeStep: CGFloat = 0.016
 
-        if dragIsSelecting == nil {
-            dragIsSelecting = !selectedWeekdays.contains(dayId)
+        let timer = Timer(timeInterval: Double(timeStep), repeats: true) { [self] timer in
+            let delta = currentVelocity * timeStep
+            applyDragDelta(delta)
+
+            currentVelocity *= friction
+
+            if abs(currentVelocity) < 18 {
+                timer.invalidate()
+                spinTimer = nil
+                snapToNearestDetent()
+            }
         }
-        guard let isSelecting = dragIsSelecting else { return }
+        // Run in .common mode so touch tracking never drops animation frames
+        RunLoop.main.add(timer, forMode: .common)
+        spinTimer = timer
+    }
 
-        if rawIndex != previousDraggedIndex {
-            heavyHaptic.impactOccurred(intensity: 0.85)
-            ASMRSoundEngine.shared.playThump()
-            if isSelecting {
-                selectedWeekdays.insert(dayId)
+    private func stopInertialSpin() {
+        spinTimer?.invalidate()
+        spinTimer = nil
+    }
+
+    private func snapToNearestDetent() {
+        let currentDetents = round(-accumulatedDrag / strideWidth)
+        let targetOffset = -currentDetents * strideWidth
+
+        heavyHaptic.impactOccurred(intensity: 0.9)
+        ASMRSoundEngine.shared.playThump()
+
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+            accumulatedDrag = targetOffset
+        }
+
+        let finalIndex = ((Int(currentDetents) % dayList.count) + dayList.count) % dayList.count
+        activeIndex = finalIndex
+        let dayId = dayList[finalIndex].id
+        selectedWeekdays = [dayId]
+        updateOneTimeDate(forWeekday: dayId)
+    }
+
+    private func warmUpCache() {
+        cachedDayDetails = dayList.map { item in
+            buildCardDetails(forWeekday: item.id)
+        }
+    }
+
+    private func syncInitialDay() {
+        if let first = selectedWeekdays.first,
+           let match = dayList.firstIndex(where: { $0.id == first }) {
+            activeIndex = match
+            accumulatedDrag = -CGFloat(match) * strideWidth
+        } else {
+            let todayWeekday = calendar.component(.weekday, from: Date())
+            if let match = dayList.firstIndex(where: { $0.id == todayWeekday }) {
+                activeIndex = match
+                accumulatedDrag = -CGFloat(match) * strideWidth
+                selectedWeekdays = [todayWeekday]
             } else {
-                if selectedWeekdays.count > 1 {
-                    selectedWeekdays.remove(dayId)
+                activeIndex = 0
+                accumulatedDrag = 0
+                selectedWeekdays = [dayList[0].id]
+            }
+        }
+        previousHapticDetent = Int(round(-accumulatedDrag / strideWidth))
+    }
+
+    private func computeDate(forWeekday weekday: Int) -> Date {
+        let today = calendar.startOfDay(for: Date())
+        for offset in 0..<7 {
+            if let candidate = calendar.date(byAdding: .day, value: offset, to: today) {
+                if calendar.component(.weekday, from: candidate) == weekday {
+                    return candidate
                 }
             }
-            previousDraggedIndex = rawIndex
+        }
+        return today
+    }
+
+    private func buildCardDetails(forWeekday weekday: Int) -> DayCardDetails {
+        let targetDate = computeDate(forWeekday: weekday)
+        let dayNumFormatter = DateFormatter()
+        dayNumFormatter.dateFormat = "d"
+        let monthFormatter = DateFormatter()
+        monthFormatter.dateFormat = "MMM"
+        let weekdayFormatter = DateFormatter()
+        weekdayFormatter.dateFormat = "EEE"
+
+        return DayCardDetails(
+            id: weekday,
+            dayOfWeek: weekdayFormatter.string(from: targetDate).uppercased(),
+            dayNumber: dayNumFormatter.string(from: targetDate),
+            monthName: monthFormatter.string(from: targetDate).uppercased()
+        )
+    }
+
+    private func wrappedDifference(index: Int, continuousPos: Double) -> Double {
+        let diff = Double(index) - continuousPos
+        var wrapped = diff.truncatingRemainder(dividingBy: 7.0)
+        if wrapped > 3.5 { wrapped -= 7.0 }
+        if wrapped < -3.5 { wrapped += 7.0 }
+        return wrapped
+    }
+
+    private func updateOneTimeDate(forWeekday weekday: Int) {
+        let targetDate = computeDate(forWeekday: weekday)
+        var comps = calendar.dateComponents([.year, .month, .day], from: targetDate)
+        let timeComps = calendar.dateComponents([.hour, .minute], from: oneTimeDate)
+        comps.hour = timeComps.hour
+        comps.minute = timeComps.minute
+        if let newDate = calendar.date(from: comps) {
+            oneTimeDate = newDate
         }
     }
 }
 
-/// A single mechanical vertical rocker toggle switch cell
-struct MechanicalSwitchCell: View {
-    let label: String
-    let isActive: Bool
-    let onTap: () -> Void
+/// Standalone Equatable CS:GO Card view to eliminate unnecessary SwiftUI diffing
+struct CSGODayCardItemView: View, Equatable {
+    let details: NeumorphicSingleDaySliderView.DayCardDetails
+    let dist: Double
+    let isExactCenter: Bool
+    let xOffset: CGFloat
+    let cardWidth: CGFloat
+    let cardHeight: CGFloat
 
-    private let switchWidth: CGFloat = 34
-    private let switchHeight: CGFloat = 68
-    private let thumbHeight: CGFloat = 32
+    static func == (lhs: CSGODayCardItemView, rhs: CSGODayCardItemView) -> Bool {
+        lhs.details == rhs.details &&
+        abs(lhs.dist - rhs.dist) < 0.001 &&
+        lhs.isExactCenter == rhs.isExactCenter &&
+        abs(lhs.xOffset - rhs.xOffset) < 0.2
+    }
 
     var body: some View {
-        VStack(spacing: 8) {
-            // Physical Rocker Bezel
-            ZStack(alignment: isActive ? .top : .bottom) {
-                // Bezel Inset Track
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(.tertiarySystemGroupedBackground))
-                    .frame(width: switchWidth, height: switchHeight)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(
-                                isActive ? Color.black.opacity(0.35) : Color.black.opacity(0.15),
-                                lineWidth: 1
-                            )
-                    )
+        VStack(spacing: 2) {
+            // Weekday Abbreviation
+            Text(details.dayOfWeek)
+                .font(.system(size: 9, weight: .black, design: .monospaced))
+                .foregroundStyle(isExactCenter ? Color.black : Color.secondary)
 
-                // Tactical Thumb Rocker
-                VStack(spacing: 3) {
-                    // Tactile Indicator Slot
-                    Capsule()
-                        .fill(isActive ? Color.white : Color.secondary.opacity(0.3))
-                        .frame(width: 14, height: 3)
-                        .padding(.top, 4)
+            // Prominent Day Number
+            Text(details.dayNumber)
+                .font(.system(size: 19, weight: .black, design: .rounded))
+                .foregroundStyle(isExactCenter ? Color.black : Color.primary.opacity(0.85))
 
-                    // Knurled Grip Texture Lines
-                    VStack(spacing: 2) {
-                        Rectangle()
-                            .fill(isActive ? Color.white.opacity(0.6) : Color.primary.opacity(0.12))
-                            .frame(width: 16, height: 1.5)
-                        Rectangle()
-                            .fill(isActive ? Color.white.opacity(0.6) : Color.primary.opacity(0.12))
-                            .frame(width: 16, height: 1.5)
-                        Rectangle()
-                            .fill(isActive ? Color.white.opacity(0.6) : Color.primary.opacity(0.12))
-                            .frame(width: 16, height: 1.5)
-                    }
-                    .padding(.vertical, 2)
-                }
-                .frame(width: switchWidth - 4, height: thumbHeight)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(isActive ? Color.black : Color(.secondarySystemGroupedBackground))
-                        .shadow(color: Color.black.opacity(0.25), radius: 2, y: isActive ? 1 : -1)
-                )
-                .padding(2)
-                .animation(.spring(response: 0.22, dampingFraction: 0.65), value: isActive)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onTap)
-
-            // Day Label
-            Text(label)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(isActive ? Color.black : Color.secondary)
-                .tracking(0.5)
+            // Month Abbreviation
+            Text(details.monthName)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(Color.secondary)
         }
+        .frame(width: cardWidth, height: cardHeight)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(isExactCenter ? 0.15 : 0.05), radius: isExactCenter ? 2.5 : 1, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(isExactCenter ? Color.black.opacity(0.35) : Color.black.opacity(0.14), lineWidth: 1.2)
+        )
+        .scaleEffect(isExactCenter ? 1.0 : 0.92)
+        .opacity(isExactCenter ? 1.0 : 0.78)
+        .offset(x: xOffset)
     }
 }
 
@@ -963,7 +1097,7 @@ struct TactileDateTimeCompositePicker: View {
             // 2. Symmetrical Layout: Equal distance from left and right edges of parent container
             GeometryReader { geometry in
                 let totalWidth = geometry.size.width
-                let height: CGFloat = 88
+                let height: CGFloat = 79
                 let dialWidth: CGFloat = 46
                 let spacing: CGFloat = 12
                 let dateWidth = max(totalWidth - dialWidth - spacing, 1.0)
@@ -978,7 +1112,7 @@ struct TactileDateTimeCompositePicker: View {
                         .frame(width: dialWidth, height: height, alignment: .trailing)
                 }
             }
-            .frame(height: 88)
+            .frame(height: 79)
         }
         .padding(.vertical, 4)
     }
@@ -1179,162 +1313,160 @@ struct NeumorphicVerticalTimePillView: View {
     private let ribHeight: CGFloat = 6.0 // Distance between physical ridges
     private let minutesPerRib: Int = 5 // Standard 5 minutes per mechanical detent
 
+    private let totalHeight: CGFloat = 79
+    private let wheelWidth: CGFloat = 26
+
     var body: some View {
-        GeometryReader { geo in
-            let totalHeight = geo.size.height
-            let wheelWidth: CGFloat = 26
+        HStack(spacing: 4) {
+            // Micro-engraved tick landmark dots / minute notches
+            VStack(spacing: 0) {
+                let displayHour = calendar.component(.hour, from: time)
+                let hour12 = displayHour % 12 == 0 ? 12 : displayHour % 12
+                let period = displayHour >= 12 ? "P" : "A"
 
-            HStack(spacing: 4) {
-                // Micro-engraved tick landmark dots / minute notches
+                Text("\(hour12)\(period)")
+                    .font(.system(size: 8, weight: .black, design: .monospaced))
+                    .foregroundStyle(Color.black)
+
+                Spacer()
+
+                Rectangle()
+                    .fill(Color.black)
+                    .frame(width: 5, height: 1.5)
+
+                Spacer()
+
+                let m = calendar.component(.minute, from: time)
+                Text(String(format: ":%02d", m))
+                    .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color.secondary)
+            }
+            .frame(width: 16, height: totalHeight - 6)
+
+            // The Infinite Ribbed Rotating Barrel Wheel
+            ZStack {
+                // 1. Debossed Housing Cavity
+                RoundedRectangle(cornerRadius: wheelWidth / 2, style: .continuous)
+                    .fill(Color(.tertiarySystemGroupedBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: wheelWidth / 2, style: .continuous)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1.5)
+                    )
+                    .overlay(
+                        // Deep Inset Cavity Shadow
+                        RoundedRectangle(cornerRadius: wheelWidth / 2, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.black.opacity(0.35), Color.clear, Color.black.opacity(0.35)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    )
+
+                // 2. Rolling Ribbed Barrel Cylinder
+                let ribOffset = ((accumulatedDrag.truncatingRemainder(dividingBy: ribHeight)) + ribHeight).truncatingRemainder(dividingBy: ribHeight)
+                let numberOfVisibleRibs = Int(totalHeight / ribHeight) + 4
+
                 VStack(spacing: 0) {
-                    let displayHour = calendar.component(.hour, from: time)
-                    let hour12 = displayHour % 12 == 0 ? 12 : displayHour % 12
-                    let period = displayHour >= 12 ? "P" : "A"
-
-                    Text("\(hour12)\(period)")
-                        .font(.system(size: 8, weight: .black, design: .monospaced))
-                        .foregroundStyle(Color.black)
-
-                    Spacer()
-
-                    Rectangle()
-                        .fill(Color.black)
-                        .frame(width: 5, height: 1.5)
-
-                    Spacer()
-
-                    let m = calendar.component(.minute, from: time)
-                    Text(String(format: ":%02d", m))
-                        .font(.system(size: 7.5, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color.secondary)
-                }
-                .frame(width: 16, height: totalHeight - 6)
-
-                // The Infinite Ribbed Rotating Barrel Wheel
-                ZStack {
-                    // 1. Debossed Housing Cavity
-                    RoundedRectangle(cornerRadius: wheelWidth / 2, style: .continuous)
-                        .fill(Color(.tertiarySystemGroupedBackground))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: wheelWidth / 2, style: .continuous)
-                                .stroke(Color.black.opacity(0.2), lineWidth: 1.5)
-                        )
-                        .overlay(
-                            // Deep Inset Cavity Shadow
-                            RoundedRectangle(cornerRadius: wheelWidth / 2, style: .continuous)
+                    ForEach(-2..<numberOfVisibleRibs, id: \.self) { _ in
+                        VStack(spacing: 0) {
+                            // Ridge Peak (Specular Highlight)
+                            Rectangle()
                                 .fill(
                                     LinearGradient(
-                                        colors: [Color.black.opacity(0.35), Color.clear, Color.black.opacity(0.35)],
-                                        startPoint: .top,
-                                        endPoint: .bottom
+                                        colors: [
+                                            Color.black.opacity(0.75),
+                                            Color.gray.opacity(0.85),
+                                            Color.black.opacity(0.9)
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
                                     )
                                 )
-                        )
+                                .frame(height: 2.2)
 
-                    // 2. Rolling Ribbed Barrel Cylinder
-                    let ribOffset = ((accumulatedDrag.truncatingRemainder(dividingBy: ribHeight)) + ribHeight).truncatingRemainder(dividingBy: ribHeight)
-                    let numberOfVisibleRibs = Int(totalHeight / ribHeight) + 4
-
-                    VStack(spacing: 0) {
-                        ForEach(-2..<numberOfVisibleRibs, id: \.self) { _ in
-                            VStack(spacing: 0) {
-                                // Ridge Peak (Specular Highlight)
-                                Rectangle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.black.opacity(0.75),
-                                                Color.gray.opacity(0.85),
-                                                Color.black.opacity(0.9)
-                                            ],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(height: 2.2)
-
-                                // Groove Valley (Deep Shadow)
-                                Rectangle()
-                                    .fill(Color.black)
-                                    .frame(height: ribHeight - 2.2)
-                            }
+                            // Groove Valley (Deep Shadow)
+                            Rectangle()
+                                .fill(Color.black)
+                                .frame(height: ribHeight - 2.2)
                         }
                     }
-                    .frame(width: wheelWidth - 2, height: totalHeight)
-                    .offset(y: ribOffset)
-                    .clipShape(RoundedRectangle(cornerRadius: (wheelWidth - 2) / 2, style: .continuous))
-
-                    // 3. 3D Cylindrical Barrel Shading Overlay (Curvature horizon)
-                    RoundedRectangle(cornerRadius: (wheelWidth - 2) / 2, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: Color.black.opacity(0.92), location: 0.0),
-                                    .init(color: Color.black.opacity(0.40), location: 0.18),
-                                    .init(color: Color.white.opacity(0.18), location: 0.48),
-                                    .init(color: Color.white.opacity(0.22), location: 0.52),
-                                    .init(color: Color.black.opacity(0.40), location: 0.82),
-                                    .init(color: Color.black.opacity(0.92), location: 1.0)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .allowsHitTesting(false)
-                        .frame(width: wheelWidth - 2, height: totalHeight)
-
-                    // 4. Center Optical Index Line
-                    HStack {
-                        Rectangle()
-                            .fill(Color.white)
-                            .frame(width: 4, height: 2)
-                            .shadow(color: Color.white, radius: 2)
-                        Spacer()
-                    }
-                    .frame(width: wheelWidth)
-                    .allowsHitTesting(false)
-
-                    // 5. Outer Bezel Highlight Ring
-                    RoundedRectangle(cornerRadius: wheelWidth / 2, style: .continuous)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.6), Color.black.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                        .allowsHitTesting(false)
                 }
-                .frame(width: wheelWidth, height: totalHeight)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            // Brake any active inertial spin on user contact
-                            stopInertialSpin()
-                            haptic.prepare()
+                .frame(width: wheelWidth - 2, height: totalHeight)
+                .offset(y: ribOffset)
+                .clipShape(RoundedRectangle(cornerRadius: (wheelWidth - 2) / 2, style: .continuous))
 
-                            let delta = value.translation.height - lastDragY
-                            lastDragY = value.translation.height
-                            applyDragDelta(delta)
-                        }
-                        .onEnded { value in
-                            lastDragY = 0
+                // 3. 3D Cylindrical Barrel Shading Overlay (Curvature horizon)
+                RoundedRectangle(cornerRadius: (wheelWidth - 2) / 2, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.black.opacity(0.92), location: 0.0),
+                                .init(color: Color.black.opacity(0.40), location: 0.18),
+                                .init(color: Color.white.opacity(0.18), location: 0.48),
+                                .init(color: Color.white.opacity(0.22), location: 0.52),
+                                .init(color: Color.black.opacity(0.40), location: 0.82),
+                                .init(color: Color.black.opacity(0.92), location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .allowsHitTesting(false)
+                    .frame(width: wheelWidth - 2, height: totalHeight)
 
-                            // Calculate swipe fling velocity for inertial physics
-                            let predictedDelta = value.predictedEndTranslation.height - value.translation.height
-                            let velocityY = value.velocity.height
-                            let effectiveVelocity = abs(velocityY) > 50 ? velocityY : predictedDelta * 2.0
+                // 4. Center Optical Index Line
+                HStack {
+                    Rectangle()
+                        .fill(Color.white)
+                        .frame(width: 4, height: 2)
+                        .shadow(color: Color.white, radius: 2)
+                    Spacer()
+                }
+                .frame(width: wheelWidth)
+                .allowsHitTesting(false)
 
-                            if abs(effectiveVelocity) > 80 {
-                                startInertialSpin(initialVelocity: effectiveVelocity)
-                            }
-                        }
-                )
+                // 5. Outer Bezel Highlight Ring
+                RoundedRectangle(cornerRadius: wheelWidth / 2, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.6), Color.black.opacity(0.2)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+                    .allowsHitTesting(false)
             }
-            .frame(width: geo.size.width, height: totalHeight, alignment: .trailing)
+            .frame(width: wheelWidth, height: totalHeight)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        // Brake any active inertial spin on user contact
+                        stopInertialSpin()
+                        haptic.prepare()
+
+                        let delta = value.translation.height - lastDragY
+                        lastDragY = value.translation.height
+                        applyDragDelta(delta)
+                    }
+                    .onEnded { value in
+                        lastDragY = 0
+
+                        // Calculate swipe fling velocity for inertial physics
+                        let predictedDelta = value.predictedEndTranslation.height - value.translation.height
+                        let velocityY = value.velocity.height
+                        let effectiveVelocity = abs(velocityY) > 50 ? velocityY : predictedDelta * 2.0
+
+                        if abs(effectiveVelocity) > 80 {
+                            startInertialSpin(initialVelocity: effectiveVelocity)
+                        }
+                    }
+            )
         }
+        .frame(width: 16 + 4 + wheelWidth, height: totalHeight, alignment: .center)
         .onDisappear {
             stopInertialSpin()
         }
