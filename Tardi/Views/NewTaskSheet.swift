@@ -8,28 +8,44 @@ struct NewTaskSheet: View {
     @Environment(\.dismiss) private var dismiss
     let node: LocationNode
 
-    @State private var taskTitle = ""
+    @State private var taskId = Self.generateUniqueTaskId()
     @State private var selectedWeekdays: Set<Int> = [2, 3, 4, 5, 6] // Mon-Fri default
-    @State private var isOneTime = false
+    @State private var isOneTime = true
     @State private var oneTimeDate = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
     @State private var deadlineTime = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
     @State private var pledgeAmount: Double = 0.0
+
+    static func generateUniqueTaskId() -> String {
+        let randomNum = Int.random(in: 1000...9999)
+        return "HAB-\(randomNum)"
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // 1. Task Name Input
+                    // 1. Unique Auto-Generated Task ID Display
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("TASK NAME")
+                        Text("TASK ID")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.secondary)
                             .tracking(1)
 
-                        TextField("e.g. Morning Workout, Arrive at Office", text: $taskTitle)
-                            .font(.system(size: 16, weight: .medium, design: .rounded))
-                            .padding(14)
-                            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        HStack {
+                            Image(systemName: "number")
+                                .font(.system(size: 13, weight: .black))
+                                .foregroundStyle(Color.black.opacity(0.6))
+
+                            Text(taskId)
+                                .font(.system(size: 16, weight: .black, design: .monospaced))
+                                .foregroundStyle(Color.black)
+                                .tracking(1.0)
+
+                            Spacer()
+
+                        }
+                        .padding(14)
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
 
                     // 2. Schedule & Deadline Controller (80% Schedule / 20% Time Pill)
@@ -63,7 +79,7 @@ struct NewTaskSheet: View {
 
                     // 5. Primary Add Button
                     Button(action: saveTask) {
-                        Text(pledgeAmount > 0 ? "Arm Task ($\(Int(pledgeAmount)) Stake)" : "Add Task to \(node.name)")
+                        Text(pledgeAmount > 0 ? "Arm Task (\(taskId) • $\(Int(pledgeAmount)))" : "Add Task \(taskId) to \(node.name)")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 15)
@@ -72,8 +88,8 @@ struct NewTaskSheet: View {
                             .shadow(color: (pledgeAmount > 0 ? Color.red : Color.accentColor).opacity(0.3), radius: 8, y: 3)
                     }
                     .buttonStyle(.plain)
-                    .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (!isOneTime && selectedWeekdays.isEmpty))
-                    .opacity(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (!isOneTime && selectedWeekdays.isEmpty) ? 0.5 : 1.0)
+                    .disabled(!isOneTime && selectedWeekdays.isEmpty)
+                    .opacity((!isOneTime && selectedWeekdays.isEmpty) ? 0.5 : 1.0)
                     .padding(.bottom, 16)
                 }
                 .padding(.horizontal, 20)
@@ -97,7 +113,7 @@ struct NewTaskSheet: View {
         let minute = calendar.component(.minute, from: timeSource)
 
         let task = HabitTask(
-            title: taskTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+            title: taskId,
             weekdays: isOneTime ? [] : Array(selectedWeekdays).sorted(),
             deadlineHour: hour,
             deadlineMinute: minute,

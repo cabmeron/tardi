@@ -208,21 +208,6 @@ struct BurningFuseCountdownView: View {
                     .background(.ultraThinMaterial, in: Capsule())
                     .overlay(Capsule().stroke(Color.secondary.opacity(0.2), lineWidth: 0.5))
                     .foregroundStyle(.primary)
-                } else {
-                    Image(systemName: "plus.circle.dashed")
-                        .font(.system(size: 30))
-                        .foregroundStyle(Color.accentColor)
-
-                    Text("NO ACTIVE TASKS")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .tracking(1)
-
-                    if let onAdd = onAddTask {
-                        Button("Add Task", action: onAdd)
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.accentColor)
-                    }
                 }
             }
             .padding(.horizontal, 20)
@@ -642,11 +627,6 @@ struct PledgeStakeSelector: View {
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
                                 .foregroundStyle(isSelected ? (amount > 0 ? Color.red : Color.primary) : Color.secondary)
 
-                            if amount == 10 {
-                                Text("POPULAR")
-                                    .font(.system(size: 7, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(isSelected ? Color.red : Color.secondary)
-                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)

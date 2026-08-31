@@ -195,24 +195,13 @@ struct CommitmentDetailView: View {
             }
 
             if node.tasks.isEmpty {
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     Text("No tasks scheduled here yet.")
-                        .font(.subheadline)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
-
-                    Button {
-                        showingAddTaskSheet = true
-                    } label: {
-                        Text("+ Add First Task")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.accentColor.opacity(0.12), in: Capsule())
-                            .foregroundStyle(Color.accentColor)
-                    }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.vertical, 18)
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             } else {
                 VStack(spacing: 8) {

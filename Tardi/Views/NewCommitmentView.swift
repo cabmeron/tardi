@@ -19,9 +19,9 @@ struct NewCommitmentView: View {
 
     // Optional initial task configuration
     @State private var addInitialTask = false
-    @State private var taskTitle = ""
+    @State private var taskTitle = "HAB-\(Int.random(in: 1000...9999))"
     @State private var selectedWeekdays: Set<Int> = [2, 3, 4, 5, 6]
-    @State private var isOneTime = false
+    @State private var isOneTime = true
     @State private var oneTimeDate = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
     @State private var deadlineTime = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
     @State private var pledgeAmount: Double = 0.0
@@ -91,10 +91,23 @@ struct NewCommitmentView: View {
 
                         if addInitialTask {
                             VStack(spacing: 16) {
-                                TextField("Task Title (e.g. Morning Workout)", text: $taskTitle)
-                                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                                    .padding(12)
-                                    .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                HStack {
+                                    Image(systemName: "number")
+                                        .font(.system(size: 12, weight: .black))
+                                        .foregroundStyle(Color.black.opacity(0.6))
+
+                                    Text(taskTitle)
+                                        .font(.system(size: 14, weight: .black, design: .monospaced))
+                                        .foregroundStyle(Color.black)
+
+                                    Spacer()
+
+                                    Text("AUTO-GENERATED ID")
+                                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(Color.secondary)
+                                }
+                                .padding(12)
+                                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                                 ActiveDaysSwitchboardPicker(
                                     selectedWeekdays: $selectedWeekdays,
@@ -163,7 +176,7 @@ struct NewCommitmentView: View {
             let timeSource = isOneTime ? oneTimeDate : deadlineTime
             let hour = calendar.component(.hour, from: timeSource)
             let minute = calendar.component(.minute, from: timeSource)
-            let effectiveTitle = taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Arrival Deadline" : taskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            let effectiveTitle = taskTitle.isEmpty ? "HAB-\(Int.random(in: 1000...9999))" : taskTitle
 
             let task = HabitTask(
                 title: effectiveTitle,

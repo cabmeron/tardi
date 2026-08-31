@@ -425,12 +425,12 @@ struct ActiveDaysSwitchboardPicker: View {
                         Button(action: incrementWeeks) {
                             Image(systemName: "plus")
                                 .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(repeatWeeks < 52 ? Color.black : Color.secondary.opacity(0.35))
+                                .foregroundStyle(repeatWeeks < 4 ? Color.black : Color.secondary.opacity(0.35))
                                 .frame(width: 24, height: 24)
                                 .background(Color(.tertiarySystemGroupedBackground), in: Circle())
                         }
                         .buttonStyle(.plain)
-                        .disabled(repeatWeeks >= 52)
+                        .disabled(repeatWeeks >= 4)
                     }
                     .padding(.horizontal, 4)
                     .padding(.vertical, 2)
@@ -479,7 +479,7 @@ struct ActiveDaysSwitchboardPicker: View {
     }
 
     private func incrementWeeks() {
-        if repeatWeeks < 52 {
+        if repeatWeeks < 4 {
             haptic.impactOccurred(intensity: 0.6)
             ASMRSoundEngine.shared.playTick(intensity: 0.65)
             withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
@@ -588,27 +588,27 @@ struct NeumorphicSingleDaySliderView: View {
 
             // 3. Fixed CS:GO Center Selector Border & Indicator Needles
             ZStack {
-                // High-Contrast Center Target Border Frame
+                // High-Contrast Center Target Border Frame (30% reduced thickness)
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.black, lineWidth: 2.8)
+                    .stroke(Color.black, lineWidth: 1.57)
                     .frame(width: cardWidth + 4, height: cardHeight + 4)
-                    .shadow(color: Color.black.opacity(0.22), radius: 3, y: 1)
+                    .shadow(color: Color.black.opacity(0.16), radius: 2.0, y: 1)
 
                 // Top & Bottom Target Indicator Arrows
                 VStack {
                     Image(systemName: "arrowtriangle.down.fill")
-                        .font(.system(size: 7.5, weight: .black))
+                        .font(.system(size: 6.5, weight: .black))
                         .foregroundStyle(Color.black)
-                        .offset(y: -2.5)
+                        .offset(y: -2.0)
 
                     Spacer()
 
                     Image(systemName: "arrowtriangle.up.fill")
-                        .font(.system(size: 7.5, weight: .black))
+                        .font(.system(size: 6.5, weight: .black))
                         .foregroundStyle(Color.black)
-                        .offset(y: 2.5)
+                        .offset(y: 2.0)
                 }
-                .frame(height: cardHeight + 10)
+                .frame(height: cardHeight + 9)
             }
             .allowsHitTesting(false)
         }
