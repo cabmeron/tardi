@@ -18,9 +18,12 @@ struct BurningFuseCountdownView: View {
     let transitModeIcon: String?
     let distanceText: String?
     let isInsideLocation: Bool
+    var geofenceRadiusMeters: Double = 100
     let onAddTask: (() -> Void)?
 
     @State private var emberFlicker = false
+    @State private var radarSweep = false
+    @State private var radarPulse = false
 
     private var hours: Int { Int(max(0, timeRemaining)) / 3600 }
     private var minutes: Int { (Int(max(0, timeRemaining)) % 3600) / 60 }
@@ -43,20 +46,29 @@ struct BurningFuseCountdownView: View {
 
     var body: some View {
         ZStack {
-            // 0. Clear Acrylic Glass Lens Disc (Frosted Material + Specular Sheen)
+            // 0. Dark Anodized Cockpit Chassis Disc (Rich Dark Hardware Dial)
             Circle()
-                .fill(.ultraThinMaterial)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.15, green: 0.16, blue: 0.18),
+                            Color(red: 0.08, green: 0.09, blue: 0.10)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
                 .frame(width: (ringRadius * 2) + 24, height: (ringRadius * 2) + 24)
                 .overlay(
-                    // Outer Glass Beveled Rim
+                    // Outer Machined Beveled Rim
                     Circle()
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(0.65),
-                                    Color.white.opacity(0.2),
-                                    Color.primary.opacity(0.1),
-                                    Color.black.opacity(0.15)
+                                    Color.white.opacity(0.35),
+                                    Color.white.opacity(0.08),
+                                    Color.black.opacity(0.4),
+                                    Color.black.opacity(0.8)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -70,31 +82,31 @@ struct BurningFuseCountdownView: View {
                         .trim(from: 0.05, to: 0.4)
                         .stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.45), Color.clear],
+                                colors: [Color.white.opacity(0.32), Color.clear],
                                 startPoint: .topLeading,
                                 endPoint: .center
                             ),
-                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                            style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-70))
                         .padding(2)
                 )
-                .shadow(color: Color.black.opacity(0.1), radius: 14, y: 6)
+                .shadow(color: Color.black.opacity(0.35), radius: 16, y: 8)
 
-            // 1. Etched Glass Track (Groove Channel in Deep Black Tint)
+            // 1. Etched Glass Track (Groove Channel in Crisp Hairline)
             Circle()
                 .stroke(
-                    Color.black.opacity(0.18),
+                    Color.white.opacity(0.12),
                     style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round, dash: [3, 4])
                 )
                 .frame(width: ringRadius * 2, height: ringRadius * 2)
 
-            // 2. Solid Black Burning Fuse Cord Ring
+            // 2. Solid Burning Fuse Cord Ring
             if taskTitle != nil, !isCompleted {
                 Circle()
                     .trim(from: 0, to: CGFloat(max(progress, 0.03)))
                     .stroke(
-                        Color.black,
+                        Color.white.opacity(0.85),
                         style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
                     )
                     .frame(width: ringRadius * 2, height: ringRadius * 2)
@@ -134,64 +146,168 @@ struct BurningFuseCountdownView: View {
                 .offset(x: emberPosition.x, y: emberPosition.y)
                 .animation(.easeInOut(duration: 0.18).repeatForever(autoreverses: true), value: emberFlicker)
             } else if isCompleted {
-                // Completed Ring: Solid Black Seal
+                // Completed Ring: Solid Green Celebration Seal
                 Circle()
-                    .stroke(Color.black, style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round))
+                    .stroke(Color.green, style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round))
                     .frame(width: ringRadius * 2, height: ringRadius * 2)
+                    .transition(.opacity)
+            } else {
+                // MARK: - Tactical Geodesic Radar Scope Background
+                ZStack {
+                    // Deep Dark CRT Screen Lens
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color(red: 0.05, green: 0.09, blue: 0.07), // subtle phosphor bloom
+                                    Color(red: 0.02, green: 0.035, blue: 0.03), // deep carbon
+                                    Color(red: 0.01, green: 0.015, blue: 0.012) // dark vignette
+                                ],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: ringRadius
+                            )
+                        )
+                        .frame(width: ringRadius * 2, height: ringRadius * 2)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.green.opacity(0.28), lineWidth: 1)
+                        )
+
+                    // Concentric Sonar Range Rings (Bright Glowing Tactical Green)
+                    Circle()
+                        .stroke(Color.green.opacity(0.22), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                        .frame(width: ringRadius * 1.48, height: ringRadius * 1.48)
+
+                    Circle()
+                        .stroke(Color.green.opacity(0.28), style: StrokeStyle(lineWidth: 1))
+                        .frame(width: ringRadius * 0.95, height: ringRadius * 0.95)
+
+                    // Expanding Pulsing Sonar Wave
+                    Circle()
+                        .stroke(Color.green.opacity(radarPulse ? 0.48 : 0.04), lineWidth: 1.2)
+                        .frame(width: ringRadius * (radarPulse ? 1.55 : 0.65), height: ringRadius * (radarPulse ? 1.55 : 0.65))
+                        .animation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true), value: radarPulse)
+
+                    // Crosshair Reticle Hairline Ticks (N, S, E, W) in Tactical Green
+                    Rectangle()
+                        .fill(Color.green.opacity(0.38))
+                        .frame(width: 1, height: 24)
+                        .offset(y: -54)
+                    Rectangle()
+                        .fill(Color.green.opacity(0.38))
+                        .frame(width: 1, height: 24)
+                        .offset(y: 54)
+                    Rectangle()
+                        .fill(Color.green.opacity(0.38))
+                        .frame(width: 24, height: 1)
+                        .offset(x: -54)
+                    Rectangle()
+                        .fill(Color.green.opacity(0.38))
+                        .frame(width: 24, height: 1)
+                        .offset(x: 54)
+
+                    // Rotating Radar Sweep Fan Beam
+                    Circle()
+                        .fill(
+                            AngularGradient(
+                                gradient: Gradient(colors: [
+                                    Color.green.opacity(0.28),
+                                    Color.green.opacity(0.06),
+                                    Color.clear,
+                                    Color.clear
+                                ]),
+                                center: .center
+                            )
+                        )
+                        .frame(width: ringRadius * 1.55, height: ringRadius * 1.55)
+                        .rotationEffect(.degrees(radarSweep ? 360 : 0))
+                        .animation(.linear(duration: 4.5).repeatForever(autoreverses: false), value: radarSweep)
+
+                    // Cardinal Azimuth Compass Indicators (High-Contrast White)
+                    VStack {
+                        Text("N")
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                        Spacer()
+                        Text("S")
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                    }
+                    .frame(height: ringRadius * 1.7)
+
+                    HStack {
+                        Text("W")
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                        Spacer()
+                        Text("E")
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                    }
+                    .frame(width: ringRadius * 1.7)
+                }
             }
 
             // 4. Center Telemetry: EXACTLY 3 Core Items Surrounded by Burning Ring
             VStack(spacing: 7) {
                 if isCompleted {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(.primary)
+                    VStack(spacing: 5) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 38))
+                            .foregroundStyle(.green)
+                            .shadow(color: Color.green.opacity(0.4), radius: 6)
 
-                    Text("CHECKED IN")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .tracking(1)
+                        Text("DE-ARMED")
+                            .font(.system(size: 14, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                            .tracking(1.2)
 
-                    Text("STAKE SECURED")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .tracking(1)
+                        Text("STAKE SECURED")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.75))
+                            .tracking(1.4)
+                    }
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.82).combined(with: .opacity),
+                        removal: .scale(scale: 0.95).combined(with: .opacity)
+                    ))
                 } else if taskTitle != nil {
                     // ITEM 1: Amount of Money at Risk
                     VStack(spacing: 0) {
                         if pledgeAmount > 0 {
                             Text("$\(Int(pledgeAmount))")
                                 .font(.system(size: 32, weight: .black, design: .rounded))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(.white)
 
                             Text("AT RISK")
                                 .font(.system(size: 9, weight: .black, design: .monospaced))
-                                .foregroundStyle(Color.red.opacity(0.9))
+                                .foregroundStyle(Color.red.opacity(0.95))
                                 .tracking(1.5)
                         } else {
                             Text("$0")
                                 .font(.system(size: 28, weight: .black, design: .rounded))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(.white)
 
                             Text("AT RISK")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.white.opacity(0.7))
                                 .tracking(1.2)
                         }
                     }
 
                     Divider()
                         .frame(width: 36)
-                        .opacity(0.3)
+                        .background(Color.white.opacity(0.2))
 
                     // ITEM 2: Current Distance Away in Miles
                     VStack(spacing: 1) {
                         Text(distanceText ?? "0.0 mi")
                             .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.white)
                         Text("DISTANCE")
                             .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.white.opacity(0.7))
                             .tracking(1)
                     }
 
@@ -205,9 +321,58 @@ struct BurningFuseCountdownView: View {
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 3.5)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .overlay(Capsule().stroke(Color.secondary.opacity(0.2), lineWidth: 0.5))
-                    .foregroundStyle(.primary)
+                    .background(Color.black.opacity(0.55), in: Capsule())
+                    .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.5))
+                    .foregroundStyle(.white)
+                } else {
+                    // MARK: - Tactical Geodesic Radar Scope Center Telemetry
+                    VStack(spacing: 3) {
+                        // Central Glowing GPS Beacon Origin Dot
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(radarPulse ? 0.6 : 0.2))
+                                .frame(width: radarPulse ? 18 : 8, height: radarPulse ? 18 : 8)
+                                .blur(radius: 3)
+
+                            Circle()
+                                .fill(isInsideLocation ? Color.green : Color.green.opacity(0.95))
+                                .frame(width: 6, height: 6)
+                                .shadow(color: Color.green, radius: 4)
+                        }
+                        .padding(.bottom, 2)
+
+                        // Real-Time Distance Readout
+                        Text(isInsideLocation ? "INSIDE" : (distanceText ?? "0.0 mi"))
+                            .font(.system(size: isInsideLocation ? 21 : 24, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+
+                        // Telemetry Badges
+                        Text("GEOFENCE ARMED")
+                            .font(.system(size: 8.5, weight: .black, design: .monospaced))
+                            .foregroundStyle(Color.green.opacity(0.95))
+                            .tracking(1.4)
+
+                        Text("\(Int(geofenceRadiusMeters))M RADIUS")
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.65))
+                            .tracking(1)
+
+                        // Status Pill
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(isInsideLocation ? Color.green : Color.orange)
+                                .frame(width: 4, height: 4)
+
+                            Text(isInsideLocation ? "IN BOUNDS" : "MONITORING")
+                                .font(.system(size: 7.5, weight: .heavy, design: .monospaced))
+                                .foregroundStyle(isInsideLocation ? Color.green : Color.white.opacity(0.85))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2.5)
+                        .background(Color.black.opacity(0.6), in: Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 0.5))
+                        .padding(.top, 2)
+                    }
                 }
             }
             .padding(.horizontal, 20)
@@ -216,6 +381,12 @@ struct BurningFuseCountdownView: View {
         .onAppear {
             withAnimation(.easeInOut(duration: 0.16).repeatForever(autoreverses: true)) {
                 emberFlicker = true
+            }
+            withAnimation(.linear(duration: 4.5).repeatForever(autoreverses: false)) {
+                radarSweep = true
+            }
+            withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
+                radarPulse = true
             }
         }
     }
@@ -312,11 +483,13 @@ struct SplitFlapDigitCell: View {
 /// coiled steel spring physics, progressive heartbeat haptics, and a mechanical lock.
 struct IndustrialPlungerButton: View {
     let title: String
+    var pressedTitle: String = "SCANNING LOCATION & DE-ARMING..."
     let isCompleted: Bool
     var isGeofenceVerified: Bool = true
     var distanceAwayMeters: Double? = nil
     var requiredRadiusMeters: Double = 100
     var onOutsideLocationTapped: (() -> Void)? = nil
+    var onHoldProgressChanged: ((_ isHolding: Bool, _ progress: CGFloat) -> Void)? = nil
     let onComplete: () -> Void
 
     @State private var isPressed = false
@@ -363,7 +536,7 @@ struct IndustrialPlungerButton: View {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(.green)
-                        Text("ARRIVED & VERIFIED")
+                        Text("DE-ARMED & STAKE SECURED")
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
                             .foregroundStyle(.green)
                             .tracking(1)
@@ -403,7 +576,7 @@ struct IndustrialPlungerButton: View {
                             .foregroundStyle(isPressed ? Color.white : Color.green)
                             .scaleEffect(isPressed ? 0.9 : 1.0)
 
-                        Text(isPressed ? "VERIFYING GPS ARRIVAL..." : title)
+                        Text(isPressed ? pressedTitle : title)
                             .font(.system(size: 13.5, weight: .bold, design: .rounded))
                             .foregroundStyle(isPressed ? .white : .primary)
                             .tracking(0.5)
@@ -444,10 +617,12 @@ struct IndustrialPlungerButton: View {
     private func startHold() {
         isPressed = true
         hapticImpact.impactOccurred(intensity: 0.6)
+        onHoldProgressChanged?(true, progress)
 
         let step = 0.05
         timer = Timer.scheduledTimer(withTimeInterval: step, repeats: true) { _ in
             progress += CGFloat(step / holdDuration)
+            onHoldProgressChanged?(true, progress)
             if progress >= 1.0 {
                 progress = 1.0
                 finishHold()
@@ -459,6 +634,7 @@ struct IndustrialPlungerButton: View {
         isPressed = false
         timer?.invalidate()
         timer = nil
+        onHoldProgressChanged?(false, 0.0)
         withAnimation(.spring(response: 0.25)) {
             progress = 0
         }
@@ -468,6 +644,7 @@ struct IndustrialPlungerButton: View {
         timer?.invalidate()
         timer = nil
         isPressed = false
+        onHoldProgressChanged?(false, 1.0)
         hapticSuccess.notificationOccurred(.success)
         onComplete()
     }
@@ -731,6 +908,215 @@ struct PledgeStakeSelector: View {
             }
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.75), value: pledgeAmount)
+    }
+}
+
+// MARK: - 5. Whole-Screen Spatial Radar Particle Scanning Overlay
+
+/// A full-screen tactical scanning HUD overlay that activates when holding down the location verification button.
+/// Renders ambient radar particles, moving laser sweep wavefronts, expanding sonar ripples,
+/// and an explosive celebratory particle shockwave upon successful verification.
+struct SpatialParticleOverlay: View {
+    let isActive: Bool
+    let progress: CGFloat // 0.0 to 1.0 charge
+    let isBursting: Bool  // True on completion burst
+
+    @State private var particles: [ScanParticle] = (0..<85).map { _ in ScanParticle.random() }
+    @State private var burstParticles: [BurstParticle] = []
+    @State private var laserSweepY: CGFloat = 0.0
+    @State private var sonarRipple: CGFloat = 0.0
+
+    struct ScanParticle: Identifiable {
+        let id = UUID()
+        var x: CGFloat // 0.0 to 1.0 (relative width)
+        var y: CGFloat // 0.0 to 1.0 (relative height)
+        var vx: CGFloat
+        var vy: CGFloat
+        var radius: CGFloat
+        var baseAlpha: Double
+        var colorIdx: Int
+
+        static func random() -> ScanParticle {
+            ScanParticle(
+                x: CGFloat.random(in: 0.02...0.98),
+                y: CGFloat.random(in: 0.02...0.98),
+                vx: CGFloat.random(in: -0.0015...0.0015),
+                vy: CGFloat.random(in: -0.0025...0.0025),
+                radius: CGFloat.random(in: 1.5...4.5),
+                baseAlpha: Double.random(in: 0.35...0.85),
+                colorIdx: Int.random(in: 0...2)
+            )
+        }
+    }
+
+    struct BurstParticle: Identifiable {
+        let id = UUID()
+        var x: CGFloat
+        var y: CGFloat
+        var vx: CGFloat
+        var vy: CGFloat
+        var radius: CGFloat
+        var alpha: Double
+        var color: Color
+    }
+
+    var body: some View {
+        ZStack {
+            if isActive || isBursting {
+                // 1. Dark Atmospheric HUD Tint
+                Color.black
+                    .opacity(isBursting ? 0.45 : (0.28 + Double(progress) * 0.24))
+                    .ignoresSafeArea()
+
+                // 2. Full-Screen Canvas Particle Renderer
+                GeometryReader { geo in
+                    let h = geo.size.height
+
+                    ZStack {
+                        // Ambient Tactical Radar Laser Sweep Line
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.clear,
+                                        Color.green.opacity(0.3),
+                                        Color.green.opacity(0.85),
+                                        Color.green.opacity(0.3),
+                                        Color.clear
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(height: 2)
+                            .shadow(color: Color.green.opacity(0.9), radius: 6)
+                            .offset(y: (h * laserSweepY) - (h / 2))
+
+                        // High-Performance Metal Canvas Particle Emitter
+                        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
+                            Canvas { ctx, size in
+                                let speedFactor = 1.0 + Double(progress) * 3.5
+                                let time = timeline.date.timeIntervalSinceReferenceDate
+
+                                for p in particles {
+                                    let driftX = (p.x + p.vx * CGFloat(speedFactor) * CGFloat(time.truncatingRemainder(dividingBy: 10)))
+                                    let driftY = (p.y + p.vy * CGFloat(speedFactor) * CGFloat(time.truncatingRemainder(dividingBy: 10)))
+
+                                    let modX = driftX.truncatingRemainder(dividingBy: 1.0)
+                                    let modY = driftY.truncatingRemainder(dividingBy: 1.0)
+
+                                    let actualX = (modX < 0 ? modX + 1.0 : modX) * size.width
+                                    let actualY = (modY < 0 ? modY + 1.0 : modY) * size.height
+
+                                    let color: Color = {
+                                        switch p.colorIdx {
+                                        case 0: return Color.green
+                                        case 1: return Color(red: 0.4, green: 1.0, blue: 0.8)
+                                        default: return Color.white
+                                        }
+                                    }()
+
+                                    let pRect = CGRect(x: actualX - p.radius, y: actualY - p.radius, width: p.radius * 2, height: p.radius * 2)
+                                    ctx.opacity = p.baseAlpha * (0.6 + Double(progress) * 0.4)
+                                    ctx.fill(Circle().path(in: pRect), with: .color(color))
+                                }
+
+                                // Render Burst Explosion Particles
+                                for bp in burstParticles {
+                                    let bpRect = CGRect(x: bp.x - bp.radius, y: bp.y - bp.radius, width: bp.radius * 2, height: bp.radius * 2)
+                                    ctx.opacity = bp.alpha
+                                    ctx.fill(Circle().path(in: bpRect), with: .color(bp.color))
+                                }
+                            }
+                        }
+
+                        // Concentric Sonar Pulse Wavefronts
+                        ForEach(0..<3) { i in
+                            Circle()
+                                .stroke(Color.green.opacity(0.35 - Double(i) * 0.08), lineWidth: 1.5)
+                                .frame(width: CGFloat(i + 1) * 160 * (0.6 + progress * 0.9))
+                                .scaleEffect(sonarRipple > 0 ? (1.0 + sonarRipple * 0.8) : 1.0)
+                        }
+
+                        // Scanning HUD Telemetry Header
+                        VStack {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 6, height: 6)
+                                    .shadow(color: Color.green, radius: 4)
+
+                                Text(isBursting ? "GEOFENCE FIX VERIFIED // 100%" : "SATELLITE POSITION SCANNING // \(Int(progress * 100))%")
+                                    .font(.system(size: 11, weight: .black, design: .monospaced))
+                                    .foregroundStyle(Color.green)
+                                    .tracking(1.5)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 6)
+                            .background(Color.black.opacity(0.7), in: Capsule())
+                            .overlay(Capsule().stroke(Color.green.opacity(0.4), lineWidth: 1))
+                            .padding(.top, 50)
+
+                            Spacer()
+                        }
+                    }
+                }
+                .ignoresSafeArea()
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: isActive)
+        .animation(.easeInOut(duration: 0.35), value: isBursting)
+        .onAppear {
+            withAnimation(.linear(duration: 3.2).repeatForever(autoreverses: true)) {
+                laserSweepY = 1.0
+            }
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                sonarRipple = 0.5
+            }
+        }
+        .onChange(of: isBursting) { _, bursting in
+            if bursting {
+                triggerBurst()
+            }
+        }
+    }
+
+    private func triggerBurst() {
+        let center = CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height * 0.6)
+        var newBurst: [BurstParticle] = []
+        for _ in 0..<90 {
+            let angle = Double.random(in: 0...(2 * .pi))
+            let speed = CGFloat.random(in: 5...18)
+            newBurst.append(
+                BurstParticle(
+                    x: center.x,
+                    y: center.y,
+                    vx: CGFloat(cos(angle)) * speed,
+                    vy: CGFloat(sin(angle)) * speed,
+                    radius: CGFloat.random(in: 2...5.5),
+                    alpha: 1.0,
+                    color: [Color.green, Color.white, Color(red: 0.45, green: 1.0, blue: 0.85)].randomElement()!
+                )
+            )
+        }
+        burstParticles = newBurst
+
+        let steps = 24
+        var currentStep = 0
+        Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { timer in
+            currentStep += 1
+            for idx in burstParticles.indices {
+                burstParticles[idx].x += burstParticles[idx].vx
+                burstParticles[idx].y += burstParticles[idx].vy
+                burstParticles[idx].vx *= 0.94 // gentle friction
+                burstParticles[idx].vy *= 0.94
+                burstParticles[idx].alpha = max(0, burstParticles[idx].alpha - 0.042)
+            }
+            if currentStep >= steps {
+                timer.invalidate()
+                burstParticles.removeAll()
+            }
+        }
     }
 }
 

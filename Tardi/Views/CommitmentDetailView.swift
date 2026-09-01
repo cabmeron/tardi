@@ -21,6 +21,12 @@ struct CommitmentDetailView: View {
     @State private var showingVaultSheet = false
     @State private var showingGeoVerificationAlert = false
     @State private var geoAlertDistance: Int = 0
+    @State private var showingMomentaryCompletion = false
+    @State private var momentaryCompletionTimer: Task<Void, Never>? = nil
+    @State private var isHoldingLocationScan = false
+    @State private var locationScanProgress: CGFloat = 0.0
+    @State private var isScanBursting = false
+    @State private var scanBurstTimer: Task<Void, Never>? = nil
 
     private let hapticFeedback = UINotificationFeedbackGenerator()
 
@@ -35,14 +41,15 @@ struct CommitmentDetailView: View {
                         // 2. Monolith Cockpit Hero: Countdown Ring with Embedded Telemetry
                         monolithCockpitRing(now: context.date)
 
-                        // 3. Heavy Industrial Plunger Check-In Button (If task pending)
+                        // 3. Heavy Industrial Plunger Button: ONLY available when an armed task needs to be de-armed
                         if let nearest = node.nearestUpcomingTask(after: context.date), !nearest.isCompletedForToday(asOf: context.date) {
                             let stakeText = nearest.isPledged && nearest.pledgeAmount > 0 ? " · $\(Int(nearest.pledgeAmount)) AT RISK" : ""
                             let isVerified = isInsideGeofence
                             let dist = calculatedDistance ?? 0
 
                             IndustrialPlungerButton(
-                                title: isVerified ? "HOLD TO CHECK IN (\(nearest.title.uppercased())\(stakeText))" : "GPS VERIFYING (\(Int(dist))m AWAY)",
+                                title: isVerified ? "HOLD TO SCAN & DE-ARM (\(nearest.title.uppercased())\(stakeText))" : "GPS VERIFYING (\(Int(dist))m AWAY)",
+                                pressedTitle: "SCANNING LOCATION & DE-ARMING...",
                                 isCompleted: nearest.isCompletedForToday(asOf: context.date),
                                 isGeofenceVerified: isVerified,
                                 distanceAwayMeters: calculatedDistance,
@@ -51,15 +58,15 @@ struct CommitmentDetailView: View {
                                     geoAlertDistance = Int(calculatedDistance ?? 0)
                                     showingGeoVerificationAlert = true
                                 },
-                                onComplete: {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        nearest.checkInEarly(
-                                            now: Date(),
-                                            isLocationVerified: true,
-                                            distanceMeters: calculatedDistance,
-                                            in: modelContext
-                                        )
+                                onHoldProgressChanged: { holding, prog in
+                                    withAnimation(.linear(duration: 0.05)) {
+                                        isHoldingLocationScan = holding
+                                        locationScanProgress = prog
                                     }
+                                },
+                                onComplete: {
+                                    triggerScanBurst()
+                                    triggerCheckInSuccess(for: nearest)
                                 }
                             )
                         }
@@ -79,6 +86,10 @@ struct CommitmentDetailView: View {
             .onAppear {
                 locationManager.startUpdatingUserLocation()
                 locationManager.requestWhenInUseAuthorization()
+            }
+            .onDisappear {
+                momentaryCompletionTimer?.cancel()
+                scanBurstTimer?.cancel()
             }
             .alert("Geolocation Verification Required", isPresented: $showingGeoVerificationAlert) {
                 Button("OK", role: .cancel) { }
@@ -119,6 +130,15 @@ struct CommitmentDetailView: View {
             .sheet(isPresented: $showingVaultSheet) {
                 VaultArmingView()
             }
+        }
+        .overlay {
+            SpatialParticleOverlay(
+                isActive: isHoldingLocationScan,
+                progress: locationScanProgress,
+                isBursting: isScanBursting
+            )
+            .allowsHitTesting(false)
+            .ignoresSafeArea()
         }
     }
 
@@ -179,7 +199,7 @@ struct CommitmentDetailView: View {
 
     private func monolithCockpitRing(now: Date) -> some View {
         let nearest = node.nearestUpcomingTask(after: now)
-        let isDone = node.isAnyTaskCompletedToday(asOf: now)
+        let isDone = showingMomentaryCompletion
         let progress = node.fuseProgress(asOf: now) ?? (node.tasks.isEmpty ? 0 : 1)
         let timeRemaining = nearest?.timeRemaining(asOf: now) ?? 0
         let distance = calculatedDistance
@@ -187,18 +207,23 @@ struct CommitmentDetailView: View {
         let pledgeAmount = nearest?.pledgeAmount ?? 0.0
         let isPledged = nearest?.isPledged ?? false
 
+        // Only show task countdown if there is an active pending task not completed today.
+        // Once checked in, activeTaskTitle is nil, which automatically shows the Tactical Geodesic Radar Scope!
+        let activeTaskTitle: String? = (nearest != nil && !nearest!.isCompletedForToday(asOf: now)) ? nearest?.title : nil
+
         return BurningFuseCountdownView(
             progress: progress,
             timeRemaining: timeRemaining,
             pledgeAmount: pledgeAmount,
             isPledged: isPledged,
-            taskTitle: nearest?.title,
+            taskTitle: activeTaskTitle,
             isCompleted: isDone,
             totalStreak: totalStreak,
             transitETA: distance != nil ? node.travelMode.formattedETA(distanceMeters: distance!) : nil,
             transitModeIcon: distance != nil ? node.travelMode.iconName : nil,
             distanceText: distance != nil ? TravelMode.formatMiles(distanceMeters: distance!) : nil,
-            isInsideLocation: node.isCurrentlyInside,
+            isInsideLocation: isInsideGeofence,
+            geofenceRadiusMeters: node.radius,
             onAddTask: { showingAddTaskSheet = true }
         )
     }
@@ -293,12 +318,12 @@ struct CommitmentDetailView: View {
 
             Spacer()
 
-            // Early Check-In or Done Pill
+            // Early De-Arm or De-Armed Pill
             if isDone {
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
-                    Text("Done")
+                    Text("De-Armed")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(.green)
                 }
@@ -308,15 +333,8 @@ struct CommitmentDetailView: View {
             } else {
                 Button {
                     if isInsideGeofence {
-                        hapticFeedback.notificationOccurred(.success)
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                            task.checkInEarly(
-                                now: Date(),
-                                isLocationVerified: true,
-                                distanceMeters: calculatedDistance,
-                                in: modelContext
-                            )
-                        }
+                        triggerScanBurst()
+                        triggerCheckInSuccess(for: task)
                     } else {
                         hapticFeedback.notificationOccurred(.warning)
                         geoAlertDistance = Int(calculatedDistance ?? 0)
@@ -326,7 +344,7 @@ struct CommitmentDetailView: View {
                     HStack(spacing: 4) {
                         Image(systemName: isInsideGeofence ? "location.fill" : "location.slash")
                             .font(.system(size: 9, weight: .bold))
-                        Text(isInsideGeofence ? "Check In" : "Outside")
+                        Text(isInsideGeofence ? "De-Arm" : "Outside")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                     }
                     .padding(.horizontal, 12)
@@ -365,6 +383,48 @@ struct CommitmentDetailView: View {
     }
 
     // MARK: - Helpers
+
+    private func triggerScanBurst() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            isScanBursting = true
+            isHoldingLocationScan = false
+            locationScanProgress = 1.0
+        }
+
+        scanBurstTimer?.cancel()
+        scanBurstTimer = Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            if !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    isScanBursting = false
+                    locationScanProgress = 0.0
+                }
+            }
+        }
+    }
+
+    private func triggerCheckInSuccess(for task: HabitTask) {
+        hapticFeedback.notificationOccurred(.success)
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.75)) {
+            task.checkInEarly(
+                now: Date(),
+                isLocationVerified: true,
+                distanceMeters: calculatedDistance,
+                in: modelContext
+            )
+            showingMomentaryCompletion = true
+        }
+
+        momentaryCompletionTimer?.cancel()
+        momentaryCompletionTimer = Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000) // Momentary 2.5s celebration
+            if !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.55)) {
+                    showingMomentaryCompletion = false
+                }
+            }
+        }
+    }
 
     private var calculatedDistance: Double? {
         guard let userCoord = locationManager.currentCoordinate ?? userCoordinate else { return nil }
