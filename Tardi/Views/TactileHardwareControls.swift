@@ -46,21 +46,21 @@ struct BurningFuseCountdownView: View {
 
     var body: some View {
         ZStack {
-            // 0. Dark Anodized Cockpit Chassis Disc (Rich Dark Hardware Dial)
+            // 0. Teenage Engineering Anodized Slate Aluminum Chassis
             Circle()
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color(red: 0.15, green: 0.16, blue: 0.18),
-                            Color(red: 0.08, green: 0.09, blue: 0.10)
+                            Color(red: 0.16, green: 0.18, blue: 0.20),
+                            Color(red: 0.09, green: 0.10, blue: 0.12)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: (ringRadius * 2) + 24, height: (ringRadius * 2) + 24)
+                .frame(width: (ringRadius * 2) + 26, height: (ringRadius * 2) + 26)
                 .overlay(
-                    // Outer Machined Beveled Rim
+                    // Outer Fine Machined Beveled Rim
                     Circle()
                         .stroke(
                             LinearGradient(
@@ -68,7 +68,7 @@ struct BurningFuseCountdownView: View {
                                     Color.white.opacity(0.35),
                                     Color.white.opacity(0.08),
                                     Color.black.opacity(0.4),
-                                    Color.black.opacity(0.8)
+                                    Color.black.opacity(0.85)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -77,79 +77,97 @@ struct BurningFuseCountdownView: View {
                         )
                 )
                 .overlay(
-                    // Diagonal Specular Reflection Glint Arc
-                    Circle()
-                        .trim(from: 0.05, to: 0.4)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.32), Color.clear],
-                                startPoint: .topLeading,
-                                endPoint: .center
-                            ),
-                            style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-70))
-                        .padding(2)
+                    // Minimalist Triangular Index Markings (▲, ▼, ◀, ▶)
+                    ZStack {
+                        Text("▲")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.65))
+                            .offset(y: -(ringRadius + 7))
+                        Text("▼")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.65))
+                            .offset(y: (ringRadius + 7))
+                        Text("◀")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.65))
+                            .offset(x: -(ringRadius + 7))
+                        Text("▶")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.65))
+                            .offset(x: (ringRadius + 7))
+                    }
+                )
+                .overlay(
+                    // 4 Precision Torx Corner Bolts
+                    ZStack {
+                        ForEach([45.0, 135.0, 225.0, 315.0], id: \.self) { angle in
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(white: 0.38), Color(white: 0.16)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 5.5, height: 5.5)
+                                .overlay(Circle().stroke(Color.black.opacity(0.6), lineWidth: 0.7))
+                                .overlay(Rectangle().fill(Color.black.opacity(0.75)).frame(width: 3.5, height: 0.8))
+                                .offset(
+                                    x: CGFloat(cos(angle * .pi / 180.0)) * (ringRadius + 8),
+                                    y: CGFloat(sin(angle * .pi / 180.0)) * (ringRadius + 8)
+                                )
+                        }
+                    }
                 )
                 .shadow(color: Color.black.opacity(0.35), radius: 16, y: 8)
 
-            // 1. Etched Glass Track (Groove Channel in Crisp Hairline)
+            // 1. Etched Hairline Track (Calibrated Groove Channel)
             Circle()
                 .stroke(
-                    Color.white.opacity(0.12),
-                    style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round, dash: [3, 4])
+                    Color.white.opacity(0.10),
+                    style: StrokeStyle(lineWidth: 1, dash: [2, 4])
                 )
                 .frame(width: ringRadius * 2, height: ringRadius * 2)
 
-            // 2. Solid Burning Fuse Cord Ring
+            // 2. Rotary 48-Step LED Sequencer Ring (Teenage Engineering E-Fuse)
             if taskTitle != nil, !isCompleted {
+                let totalSteps = 48
+                let activeSteps = Int(progress * Double(totalSteps))
+
+                // Circular Dark LCD Well Background
                 Circle()
-                    .trim(from: 0, to: CGFloat(max(progress, 0.03)))
-                    .stroke(
-                        Color.white.opacity(0.85),
-                        style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
+                    .fill(Color(red: 0.07, green: 0.08, blue: 0.09))
+                    .frame(width: (ringRadius * 1.58), height: (ringRadius * 1.58))
+                    .overlay(
+                        Circle().stroke(Color.white.opacity(0.14), lineWidth: 1)
                     )
-                    .frame(width: ringRadius * 2, height: ringRadius * 2)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 1), value: progress)
 
-                // 3. The Animated Burning Spark / Ember Head (White-Hot with Fiery Glow)
-                ZStack {
-                    // Outer Pulsing Heat Halo
-                    Circle()
-                        .fill(Color.orange.opacity(emberFlicker ? 0.45 : 0.2))
-                        .frame(width: emberFlicker ? 24 : 16, height: emberFlicker ? 24 : 16)
-                        .blur(radius: 3.5)
+                // 48 Discrete Radial LED Light Pipes (International Safety Orange)
+                ForEach(0..<totalSteps, id: \.self) { slot in
+                    let angleDeg = Double(slot) * (360.0 / Double(totalSteps))
+                    let isActive = slot < activeSteps
+                    let isLead = (slot == max(0, activeSteps - 1)) && activeSteps > 0
 
-                    // Burning Amber Corona
-                    Circle()
-                        .fill(Color.orange)
-                        .frame(width: 8.5, height: 8.5)
-                        .shadow(color: Color.orange.opacity(0.95), radius: emberFlicker ? 6 : 3)
-
-                    // White-Hot Ember Core
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 4, height: 4)
-
-                    // Radiating Spark Flecks
-                    ForEach(0..<3) { i in
-                        Circle()
-                            .fill(Color.orange.opacity(emberFlicker ? 0.85 : 0.25))
-                            .frame(width: 1.5, height: 1.5)
-                            .offset(
-                                x: CGFloat(Darwin.cos(Double(i) * 2.1 + (emberFlicker ? 1.0 : 0.0))) * 7,
-                                y: CGFloat(Darwin.sin(Double(i) * 2.1 + (emberFlicker ? 1.0 : 0.0))) * 7
-                            )
-                    }
+                    RoundedRectangle(cornerRadius: 1.2)
+                        .fill(
+                            isActive
+                                ? (isLead ? Color.white : Color(red: 1.0, green: 0.42, blue: 0.06))
+                                : Color(red: 1.0, green: 0.35, blue: 0.0).opacity(0.12)
+                        )
+                        .frame(width: 3.2, height: 9.5)
+                        .shadow(
+                            color: isActive ? Color(red: 1.0, green: 0.40, blue: 0.05).opacity(isLead ? 0.95 : 0.75) : .clear,
+                            radius: isLead ? 4 : 2
+                        )
+                        .offset(y: -ringRadius)
+                        .rotationEffect(.degrees(angleDeg))
                 }
-                .offset(x: emberPosition.x, y: emberPosition.y)
-                .animation(.easeInOut(duration: 0.18).repeatForever(autoreverses: true), value: emberFlicker)
             } else if isCompleted {
-                // Completed Ring: Solid Green Celebration Seal
+                // Completed Ring: Solid Green Circuit Disengaged Seal
                 Circle()
                     .stroke(Color.green, style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round))
                     .frame(width: ringRadius * 2, height: ringRadius * 2)
+                    .shadow(color: Color.green.opacity(0.5), radius: 6)
                     .transition(.opacity)
             } else {
                 // MARK: - Tactical Geodesic Radar Scope Background
@@ -253,18 +271,18 @@ struct BurningFuseCountdownView: View {
             VStack(spacing: 7) {
                 if isCompleted {
                     VStack(spacing: 5) {
-                        Image(systemName: "checkmark.seal.fill")
+                        Image(systemName: "bolt.badge.checkmark.fill")
                             .font(.system(size: 38))
                             .foregroundStyle(.green)
                             .shadow(color: Color.green.opacity(0.4), radius: 6)
 
-                        Text("DE-ARMED")
-                            .font(.system(size: 14, weight: .black, design: .rounded))
+                        Text("CIRCUIT DISENGAGED")
+                            .font(.system(size: 13, weight: .black, design: .rounded))
                             .foregroundStyle(.white)
                             .tracking(1.2)
 
-                        Text("STAKE SECURED")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        Text("FUSE PRESERVED • STAKE SECURED")
+                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(Color.white.opacity(0.75))
                             .tracking(1.4)
                     }
@@ -273,57 +291,71 @@ struct BurningFuseCountdownView: View {
                         removal: .scale(scale: 0.95).combined(with: .opacity)
                     ))
                 } else if taskTitle != nil {
-                    // ITEM 1: Amount of Money at Risk
-                    VStack(spacing: 0) {
-                        if pledgeAmount > 0 {
-                            Text("$\(Int(pledgeAmount))")
-                                .font(.system(size: 32, weight: .black, design: .rounded))
-                                .foregroundStyle(.white)
-
-                            Text("AT RISK")
-                                .font(.system(size: 9, weight: .black, design: .monospaced))
-                                .foregroundStyle(Color.red.opacity(0.95))
-                                .tracking(1.5)
-                        } else {
-                            Text("$0")
-                                .font(.system(size: 28, weight: .black, design: .rounded))
-                                .foregroundStyle(.white)
-
-                            Text("AT RISK")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .foregroundStyle(Color.white.opacity(0.7))
-                                .tracking(1.2)
-                        }
-                    }
-
-                    Divider()
-                        .frame(width: 36)
-                        .background(Color.white.opacity(0.2))
-
-                    // ITEM 2: Current Distance Away in Miles
-                    VStack(spacing: 1) {
-                        Text(distanceText ?? "0.0 mi")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                        Text("DISTANCE")
+                    // MARK: - Teenage Engineering Inverted LCD Display
+                    VStack(spacing: 4) {
+                        // Top Mode Placard
+                        Text(hours > 0 ? "HOURS REMAINING" : "MINUTES REMAINING")
                             .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color.white.opacity(0.7))
-                            .tracking(1)
-                    }
+                            .foregroundStyle(Color.white.opacity(0.65))
+                            .tracking(1.4)
 
-                    // ITEM 3: Time Away & Mode of Transit
-                    HStack(spacing: 4) {
-                        Image(systemName: transitModeIcon ?? "figure.walk")
-                            .font(.system(size: 10, weight: .bold))
+                        // Main Inverted Digital LCD Readout
+                        if hours > 0 {
+                            Text(String(format: "%02d:%02d:%02d", hours, minutes, seconds))
+                                .font(.system(size: 26, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.white)
+                        } else {
+                            HStack(spacing: 7) {
+                                Text(String(format: "%02d", minutes))
+                                Text(String(format: "%02d", seconds))
+                            }
+                            .font(.system(size: 34, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.white)
+                        }
 
-                        Text(transitETA != nil ? "\(transitETA!) away" : "Nearby")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                        // Subtitle
+                        Text("E-FUSE DECAY ACTIVE")
+                            .font(.system(size: 7.5, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.45))
+                            .tracking(1.2)
+
+                        // Circuit Load / Stake Telemetry
+                        if pledgeAmount > 0 {
+                            HStack(spacing: 4) {
+                                Text("LOAD:")
+                                    .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(Color.white.opacity(0.55))
+                                Text("$\(Int(pledgeAmount)).00")
+                                    .font(.system(size: 8.5, weight: .black, design: .monospaced))
+                                    .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.08))
+                                    .tracking(0.5)
+                            }
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(Color(red: 1.0, green: 0.45, blue: 0.08).opacity(0.14), in: Capsule())
+                            .overlay(Capsule().stroke(Color(red: 1.0, green: 0.45, blue: 0.08).opacity(0.35), lineWidth: 0.6))
+                        } else {
+                            Text(taskTitle?.uppercased() ?? "HABIT TASK")
+                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(Color.white.opacity(0.75))
+                                .lineLimit(1)
+                        }
+
+                        // Range Proximity Telemetry
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(isInsideLocation ? Color.green : Color.orange)
+                                .frame(width: 4, height: 4)
+
+                            Text(isInsideLocation ? "IN GEOFENCE RANGE" : (distanceText != nil ? "\(distanceText!) TO DISENGAGE" : "MONITORING"))
+                                .font(.system(size: 7.5, weight: .heavy, design: .monospaced))
+                                .foregroundStyle(isInsideLocation ? Color.green : Color.white.opacity(0.85))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2.5)
+                        .background(Color.black.opacity(0.6), in: Capsule())
+                        .overlay(Capsule().stroke(isInsideLocation ? Color.green.opacity(0.35) : Color.white.opacity(0.18), lineWidth: 0.5))
                     }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 3.5)
-                    .background(Color.black.opacity(0.55), in: Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.5))
-                    .foregroundStyle(.white)
                 } else {
                     // MARK: - Tactical Geodesic Radar Scope Center Telemetry
                     VStack(spacing: 3) {
@@ -483,7 +515,7 @@ struct SplitFlapDigitCell: View {
 /// coiled steel spring physics, progressive heartbeat haptics, and a mechanical lock.
 struct IndustrialPlungerButton: View {
     let title: String
-    var pressedTitle: String = "SCANNING LOCATION & DE-ARMING..."
+    var pressedTitle: String = "DISENGAGING CIRCUIT BREAKER..."
     let isCompleted: Bool
     var isGeofenceVerified: Bool = true
     var distanceAwayMeters: Double? = nil
@@ -513,12 +545,15 @@ struct IndustrialPlungerButton: View {
                             .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
                     )
 
-                // Progress Fill Track
+                // Progress Fill Track (Safety Orange Breaker Charge)
                 GeometryReader { geo in
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [Color.accentColor.opacity(0.4), Color.accentColor],
+                                colors: [
+                                    Color(red: 1.0, green: 0.45, blue: 0.08).opacity(0.4),
+                                    Color(red: 1.0, green: 0.45, blue: 0.08)
+                                ],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -533,13 +568,13 @@ struct IndustrialPlungerButton: View {
                 // The Heavy Plunger Button
                 HStack(spacing: 8) {
                     if isCompleted {
-                        Image(systemName: "checkmark.seal.fill")
+                        Image(systemName: "bolt.badge.checkmark.fill")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(.green)
-                        Text("DE-ARMED & STAKE SECURED")
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        Text("CIRCUIT DISENGAGED • FUSE PRESERVED")
+                            .font(.system(size: 12.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(.green)
-                            .tracking(1)
+                            .tracking(0.8)
                     } else if !isGeofenceVerified {
                         Image(systemName: "location.slash.fill")
                             .font(.system(size: 14, weight: .bold))
@@ -570,24 +605,24 @@ struct IndustrialPlungerButton: View {
                             .background(Color.orange.opacity(0.15), in: Capsule())
                             .foregroundStyle(Color.orange)
                     } else {
-                        // Coiled Spring Icon / Plunger Indicator
-                        Image(systemName: isPressed ? "lock.fill" : "location.fill")
+                        // E-Fuse Circuit Disengage Indicator
+                        Image(systemName: isPressed ? "bolt.slash.fill" : "bolt.fill")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(isPressed ? Color.white : Color.green)
+                            .foregroundStyle(isPressed ? Color.white : Color(red: 1.0, green: 0.45, blue: 0.08))
                             .scaleEffect(isPressed ? 0.9 : 1.0)
 
                         Text(isPressed ? pressedTitle : title)
-                            .font(.system(size: 13.5, weight: .bold, design: .rounded))
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundStyle(isPressed ? .white : .primary)
                             .tracking(0.5)
 
                         if !isPressed {
-                            Text("HOLD")
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            Text("DISENGAGE")
+                                .font(.system(size: 9, weight: .black, design: .monospaced))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color(.secondarySystemBackground), in: Capsule())
-                                .foregroundStyle(.secondary)
+                                .background(Color(red: 1.0, green: 0.45, blue: 0.08).opacity(0.18), in: Capsule())
+                                .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.08))
                         }
                     }
                 }
@@ -1010,8 +1045,8 @@ struct SpatialParticleOverlay: View {
 
                                     let color: Color = {
                                         switch p.colorIdx {
-                                        case 0: return Color.green
-                                        case 1: return Color(red: 0.4, green: 1.0, blue: 0.8)
+                                        case 0: return Color(red: 1.0, green: 0.45, blue: 0.08)
+                                        case 1: return Color(red: 1.0, green: 0.75, blue: 0.2)
                                         default: return Color.white
                                         }
                                     }()
@@ -1033,7 +1068,7 @@ struct SpatialParticleOverlay: View {
                         // Concentric Sonar Pulse Wavefronts
                         ForEach(0..<3) { i in
                             Circle()
-                                .stroke(Color.green.opacity(0.35 - Double(i) * 0.08), lineWidth: 1.5)
+                                .stroke(Color(red: 1.0, green: 0.45, blue: 0.08).opacity(0.35 - Double(i) * 0.08), lineWidth: 1.5)
                                 .frame(width: CGFloat(i + 1) * 160 * (0.6 + progress * 0.9))
                                 .scaleEffect(sonarRipple > 0 ? (1.0 + sonarRipple * 0.8) : 1.0)
                         }
@@ -1042,19 +1077,19 @@ struct SpatialParticleOverlay: View {
                         VStack {
                             HStack(spacing: 6) {
                                 Circle()
-                                    .fill(Color.green)
+                                    .fill(isBursting ? Color.green : Color(red: 1.0, green: 0.45, blue: 0.08))
                                     .frame(width: 6, height: 6)
-                                    .shadow(color: Color.green, radius: 4)
+                                    .shadow(color: isBursting ? Color.green : Color(red: 1.0, green: 0.45, blue: 0.08), radius: 4)
 
-                                Text(isBursting ? "GEOFENCE FIX VERIFIED // 100%" : "SATELLITE POSITION SCANNING // \(Int(progress * 100))%")
+                                Text(isBursting ? "CIRCUIT DISENGAGED // FUSE PRESERVED" : "DISENGAGING CIRCUIT BREAKER // \(Int(progress * 100))%")
                                     .font(.system(size: 11, weight: .black, design: .monospaced))
-                                    .foregroundStyle(Color.green)
+                                    .foregroundStyle(isBursting ? Color.green : Color(red: 1.0, green: 0.45, blue: 0.08))
                                     .tracking(1.5)
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 6)
                             .background(Color.black.opacity(0.7), in: Capsule())
-                            .overlay(Capsule().stroke(Color.green.opacity(0.4), lineWidth: 1))
+                            .overlay(Capsule().stroke((isBursting ? Color.green : Color(red: 1.0, green: 0.45, blue: 0.08)).opacity(0.4), lineWidth: 1))
                             .padding(.top, 50)
 
                             Spacer()
@@ -1095,7 +1130,7 @@ struct SpatialParticleOverlay: View {
                     vy: CGFloat(sin(angle)) * speed,
                     radius: CGFloat.random(in: 2...5.5),
                     alpha: 1.0,
-                    color: [Color.green, Color.white, Color(red: 0.45, green: 1.0, blue: 0.85)].randomElement()!
+                    color: [Color.green, Color(red: 1.0, green: 0.45, blue: 0.08), Color.white, Color(red: 1.0, green: 0.8, blue: 0.3)].randomElement()!
                 )
             )
         }

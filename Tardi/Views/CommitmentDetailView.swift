@@ -41,15 +41,15 @@ struct CommitmentDetailView: View {
                         // 2. Monolith Cockpit Hero: Countdown Ring with Embedded Telemetry
                         monolithCockpitRing(now: context.date)
 
-                        // 3. Heavy Industrial Plunger Button: ONLY available when an armed task needs to be de-armed
+                        // 3. Heavy Industrial Plunger Button: ONLY available when an armed task needs to be disengaged
                         if let nearest = node.nearestUpcomingTask(after: context.date), !nearest.isCompletedForToday(asOf: context.date) {
                             let stakeText = nearest.isPledged && nearest.pledgeAmount > 0 ? " · $\(Int(nearest.pledgeAmount)) AT RISK" : ""
                             let isVerified = isInsideGeofence
                             let dist = calculatedDistance ?? 0
 
                             IndustrialPlungerButton(
-                                title: isVerified ? "HOLD TO SCAN & DE-ARM (\(nearest.title.uppercased())\(stakeText))" : "GPS VERIFYING (\(Int(dist))m AWAY)",
-                                pressedTitle: "SCANNING LOCATION & DE-ARMING...",
+                                title: isVerified ? "HOLD TO DISENGAGE E-FUSE (\(nearest.title.uppercased())\(stakeText))" : "GPS VERIFYING (\(Int(dist))m AWAY)",
+                                pressedTitle: "DISENGAGING CIRCUIT BREAKER...",
                                 isCompleted: nearest.isCompletedForToday(asOf: context.date),
                                 isGeofenceVerified: isVerified,
                                 distanceAwayMeters: calculatedDistance,
@@ -318,12 +318,12 @@ struct CommitmentDetailView: View {
 
             Spacer()
 
-            // Early De-Arm or De-Armed Pill
+            // Early Disengage or Disengaged Pill
             if isDone {
                 HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
+                    Image(systemName: "bolt.badge.checkmark.fill")
                         .foregroundStyle(.green)
-                    Text("De-Armed")
+                    Text("Disengaged")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(.green)
                 }
@@ -342,9 +342,9 @@ struct CommitmentDetailView: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: isInsideGeofence ? "location.fill" : "location.slash")
+                        Image(systemName: isInsideGeofence ? "bolt.fill" : "location.slash")
                             .font(.system(size: 9, weight: .bold))
-                        Text(isInsideGeofence ? "De-Arm" : "Outside")
+                        Text(isInsideGeofence ? "Disengage" : "Outside")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                     }
                     .padding(.horizontal, 12)
