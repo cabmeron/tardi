@@ -11,12 +11,16 @@ struct CommitmentDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Bindable var node: LocationNode
-    var userCoordinate: CLLocationCoordinate2D? = LocationManager.shared.currentCoordinate
+    var userCoordinate: CLLocationCoordinate2D? = nil
+
+    @ObservedObject private var locationManager = LocationManager.shared
 
     @State private var isEditingName = false
     @State private var editedName = ""
     @State private var showingAddTaskSheet = false
     @State private var showingVaultSheet = false
+    @State private var showingGeoVerificationAlert = false
+    @State private var geoAlertDistance: Int = 0
 
     private let hapticFeedback = UINotificationFeedbackGenerator()
 
@@ -34,29 +38,58 @@ struct CommitmentDetailView: View {
                         // 3. Heavy Industrial Plunger Check-In Button (If task pending)
                         if let nearest = node.nearestUpcomingTask(after: context.date), !nearest.isCompletedForToday(asOf: context.date) {
                             let stakeText = nearest.isPledged && nearest.pledgeAmount > 0 ? " · $\(Int(nearest.pledgeAmount)) AT RISK" : ""
+                            let isVerified = isInsideGeofence
+                            let dist = calculatedDistance ?? 0
+
                             IndustrialPlungerButton(
-                                title: "HOLD TO CHECK IN (\(nearest.title.uppercased())\(stakeText))",
-                                isCompleted: nearest.isCompletedForToday(asOf: context.date)
-                            ) {
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                    nearest.checkInEarly(now: Date(), in: modelContext)
+                                title: isVerified ? "HOLD TO CHECK IN (\(nearest.title.uppercased())\(stakeText))" : "GPS VERIFYING (\(Int(dist))m AWAY)",
+                                isCompleted: nearest.isCompletedForToday(asOf: context.date),
+                                isGeofenceVerified: isVerified,
+                                distanceAwayMeters: calculatedDistance,
+                                requiredRadiusMeters: node.radius,
+                                onOutsideLocationTapped: {
+                                    geoAlertDistance = Int(calculatedDistance ?? 0)
+                                    showingGeoVerificationAlert = true
+                                },
+                                onComplete: {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                        nearest.checkInEarly(
+                                            now: Date(),
+                                            isLocationVerified: true,
+                                            distanceMeters: calculatedDistance,
+                                            in: modelContext
+                                        )
+                                    }
                                 }
-                            }
+                            )
                         }
 
                         // 4. Tasks at this Location Section (with Stake Badges)
                         tasksSection(now: context.date)
 
-                        // 5. Multiband Radio Transit Tuner
-                        transitTunerSection
-
-                        // 6. Quiet Delete Node Action
+                        // 5. Quiet Delete Node Action
                         deleteButton
                             .padding(.top, 4)
                             .padding(.bottom, 24)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
+                }
+            }
+            .onAppear {
+                locationManager.startUpdatingUserLocation()
+                locationManager.requestWhenInUseAuthorization()
+            }
+            .alert("Geolocation Verification Required", isPresented: $showingGeoVerificationAlert) {
+                Button("OK", role: .cancel) { }
+                Button("Refresh GPS") {
+                    locationManager.startUpdatingUserLocation()
+                }
+            } message: {
+                if geoAlertDistance > 0 {
+                    Text("You are currently \(geoAlertDistance)m away from \(node.name).\n\nYou must be physically within the \(Int(node.radius))m geofence radius to verify arrival.")
+                } else {
+                    Text("GPS coordinates could not be confirmed. Please enable Location Services and move within the \(Int(node.radius))m geofence to verify your check-in.")
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -274,17 +307,32 @@ struct CommitmentDetailView: View {
                 .background(Color.green.opacity(0.12), in: Capsule())
             } else {
                 Button {
-                    hapticFeedback.notificationOccurred(.success)
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                        task.checkInEarly(now: Date(), in: modelContext)
+                    if isInsideGeofence {
+                        hapticFeedback.notificationOccurred(.success)
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                            task.checkInEarly(
+                                now: Date(),
+                                isLocationVerified: true,
+                                distanceMeters: calculatedDistance,
+                                in: modelContext
+                            )
+                        }
+                    } else {
+                        hapticFeedback.notificationOccurred(.warning)
+                        geoAlertDistance = Int(calculatedDistance ?? 0)
+                        showingGeoVerificationAlert = true
                     }
                 } label: {
-                    Text("Check In")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(node.isCurrentlyInside ? Color.green : Color.accentColor, in: Capsule())
-                        .foregroundStyle(.white)
+                    HStack(spacing: 4) {
+                        Image(systemName: isInsideGeofence ? "location.fill" : "location.slash")
+                            .font(.system(size: 9, weight: .bold))
+                        Text(isInsideGeofence ? "Check In" : "Outside")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(isInsideGeofence ? Color.green : Color.orange.opacity(0.18), in: Capsule())
+                    .foregroundStyle(isInsideGeofence ? Color.white : Color.orange)
                 }
                 .buttonStyle(.plain)
             }
@@ -305,24 +353,6 @@ struct CommitmentDetailView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    // MARK: - 4. Multiband Radio Transit Tuner
-
-    private var transitTunerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("TRANSIT METHOD TUNER")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.secondary)
-                .tracking(1)
-
-            MultibandTransitTuner(selection: $node.travelMode)
-                .onChange(of: node.travelMode) { _, _ in
-                    try? modelContext.save()
-                }
-        }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
     // MARK: - 5. Delete Button
 
     private var deleteButton: some View {
@@ -337,10 +367,18 @@ struct CommitmentDetailView: View {
     // MARK: - Helpers
 
     private var calculatedDistance: Double? {
-        guard let userCoord = userCoordinate else { return nil }
+        guard let userCoord = locationManager.currentCoordinate ?? userCoordinate else { return nil }
         let userLoc = CLLocation(latitude: userCoord.latitude, longitude: userCoord.longitude)
         let targetLoc = CLLocation(latitude: node.latitude, longitude: node.longitude)
         return userLoc.distance(from: targetLoc)
+    }
+
+    private var isInsideGeofence: Bool {
+        if node.isCurrentlyInside { return true }
+        if let distance = calculatedDistance {
+            return distance <= node.radius
+        }
+        return false
     }
 
     private func deleteTask(_ task: HabitTask) {

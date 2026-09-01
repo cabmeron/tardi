@@ -8,6 +8,7 @@ import (
 	"tardi-backend/config"
 	"tardi-backend/handlers"
 	"tardi-backend/middleware"
+	"tardi-backend/scheduler"
 
 	"github.com/stripe/stripe-go/v78"
 )
@@ -23,6 +24,11 @@ func main() {
 		log.Println("🧪 Running in Sandbox Simulation mode (No Stripe key required)")
 	}
 
+	// Initialize and start the Redis Deadline Scheduler Service
+	sched := scheduler.NewService(cfg)
+	sched.Start()
+	defer sched.Stop()
+
 	mux := http.NewServeMux()
 
 	// Health check
@@ -31,6 +37,12 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"healthy","service":"tardi-backend","version":"1.0.0"}`))
 	})
+
+	// Scheduler Health & Status Endpoints
+	mux.HandleFunc("GET /api/v1/scheduler/health", handlers.HandleSchedulerHealth(sched))
+	mux.HandleFunc("GET /api/v1/scheduler/status", handlers.HandleSchedulerStatus(sched))
+	mux.HandleFunc("POST /api/v1/scheduler/schedule", handlers.HandleScheduleTask(sched))
+	mux.HandleFunc("POST /api/v1/scheduler/cancel", handlers.HandleCancelTask(sched))
 
 	// API v1 Routes
 	mux.HandleFunc("POST /api/v1/vault/setup-intent", handlers.HandleCreateSetupIntent(cfg))
@@ -46,7 +58,8 @@ func main() {
 	handler := middleware.CORS(middleware.Logger(mux))
 
 	fmt.Printf("\n🚀 Tardi Go Backend running on http://localhost:%s\n", cfg.Port)
-	fmt.Printf("📦 Health endpoint: http://localhost:%s/health\n\n", cfg.Port)
+	fmt.Printf("📦 Main Health endpoint:      http://localhost:%s/health\n", cfg.Port)
+	fmt.Printf("⏱️ Scheduler Status endpoint: http://localhost:%s/api/v1/scheduler/status\n\n", cfg.Port)
 
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
 }

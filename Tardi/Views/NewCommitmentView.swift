@@ -20,10 +20,10 @@ struct NewCommitmentView: View {
     // Optional initial task configuration
     @State private var addInitialTask = false
     @State private var taskTitle = "HAB-\(Int.random(in: 1000...9999))"
-    @State private var selectedWeekdays: Set<Int> = [2, 3, 4, 5, 6]
+    @State private var selectedWeekdays: Set<Int> = [Calendar.current.component(.weekday, from: Date())]
     @State private var isOneTime = true
-    @State private var oneTimeDate = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-    @State private var deadlineTime = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var oneTimeDate = Date()
+    @State private var deadlineTime = Date()
     @State private var pledgeAmount: Double = 0.0
 
     init(coordinate: CLLocationCoordinate2D, initialName: String = "Pinned Location", initialRadius: Double = 100) {
@@ -62,14 +62,6 @@ struct NewCommitmentView: View {
                                 }
                                 Slider(value: $radius, in: 25...1000, step: 25)
                                     .tint(Color.accentColor)
-                            }
-
-                            Divider()
-
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Transit Mode Tuner")
-                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                MultibandTransitTuner(selection: $selectedTravelMode)
                             }
                         }
                         .padding(14)

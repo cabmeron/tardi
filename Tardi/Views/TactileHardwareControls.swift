@@ -313,6 +313,10 @@ struct SplitFlapDigitCell: View {
 struct IndustrialPlungerButton: View {
     let title: String
     let isCompleted: Bool
+    var isGeofenceVerified: Bool = true
+    var distanceAwayMeters: Double? = nil
+    var requiredRadiusMeters: Double = 100
+    var onOutsideLocationTapped: (() -> Void)? = nil
     let onComplete: () -> Void
 
     @State private var isPressed = false
@@ -321,6 +325,7 @@ struct IndustrialPlungerButton: View {
 
     private let holdDuration: Double = 1.0 // 1 second hold
     private let hapticImpact = UIImpactFeedbackGenerator(style: .heavy)
+    private let hapticWarning = UINotificationFeedbackGenerator()
     private let hapticSuccess = UINotificationFeedbackGenerator()
 
     var body: some View {
@@ -353,7 +358,7 @@ struct IndustrialPlungerButton: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 // The Heavy Plunger Button
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     if isCompleted {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 18, weight: .bold))
@@ -362,15 +367,44 @@ struct IndustrialPlungerButton: View {
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
                             .foregroundStyle(.green)
                             .tracking(1)
+                    } else if !isGeofenceVerified {
+                        Image(systemName: "location.slash.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(Color.orange)
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("OUTSIDE LOCATION")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+
+                            if let dist = distanceAwayMeters {
+                                Text("\(Int(dist))m away (Must be within \(Int(requiredRadiusMeters))m)")
+                                    .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("GPS location confirming...")
+                                    .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Spacer()
+
+                        Text("VERIFY")
+                            .font(.system(size: 9, weight: .black, design: .monospaced))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.orange.opacity(0.15), in: Capsule())
+                            .foregroundStyle(Color.orange)
                     } else {
                         // Coiled Spring Icon / Plunger Indicator
-                        Image(systemName: isPressed ? "lock.fill" : "lock.open.fill")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(isPressed ? Color.white : Color.primary)
+                        Image(systemName: isPressed ? "lock.fill" : "location.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(isPressed ? Color.white : Color.green)
                             .scaleEffect(isPressed ? 0.9 : 1.0)
 
-                        Text(isPressed ? "ARMING CHECK-IN..." : title)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                        Text(isPressed ? "VERIFYING GPS ARRIVAL..." : title)
+                            .font(.system(size: 13.5, weight: .bold, design: .rounded))
                             .foregroundStyle(isPressed ? .white : .primary)
                             .tracking(0.5)
 
@@ -384,6 +418,7 @@ struct IndustrialPlungerButton: View {
                         }
                     }
                 }
+                .padding(.horizontal, 14)
                 .offset(y: isPressed ? 2 : 0)
             }
             .contentShape(Rectangle())
@@ -391,6 +426,11 @@ struct IndustrialPlungerButton: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in
                         guard !isCompleted, !isPressed else { return }
+                        if !isGeofenceVerified {
+                            hapticWarning.notificationOccurred(.warning)
+                            onOutsideLocationTapped?()
+                            return
+                        }
                         startHold()
                     }
                     .onEnded { _ in

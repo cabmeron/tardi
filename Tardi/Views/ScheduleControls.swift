@@ -588,27 +588,27 @@ struct NeumorphicSingleDaySliderView: View {
 
             // 3. Fixed CS:GO Center Selector Border & Indicator Needles
             ZStack {
-                // High-Contrast Center Target Border Frame (30% reduced thickness)
+                // High-Contrast Center Target Border Frame (Scaled by 20% to 1.32pt)
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.black, lineWidth: 1.57)
+                    .stroke(Color.black, lineWidth: 1.32)
                     .frame(width: cardWidth + 4, height: cardHeight + 4)
-                    .shadow(color: Color.black.opacity(0.16), radius: 2.0, y: 1)
+                    .shadow(color: Color.black.opacity(0.14), radius: 1.8, y: 1)
 
                 // Top & Bottom Target Indicator Arrows
                 VStack {
                     Image(systemName: "arrowtriangle.down.fill")
                         .font(.system(size: 6.5, weight: .black))
                         .foregroundStyle(Color.black)
-                        .offset(y: -2.0)
+                        .offset(y: -1.8)
 
                     Spacer()
 
                     Image(systemName: "arrowtriangle.up.fill")
                         .font(.system(size: 6.5, weight: .black))
                         .foregroundStyle(Color.black)
-                        .offset(y: 2.0)
+                        .offset(y: 1.8)
                 }
-                .frame(height: cardHeight + 9)
+                .frame(height: cardHeight + 8.5)
             }
             .allowsHitTesting(false)
         }

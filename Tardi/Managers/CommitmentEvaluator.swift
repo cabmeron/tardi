@@ -18,26 +18,13 @@ enum CommitmentEvaluator {
             task.lastEvaluatedDeadline = deadline
 
             if success {
-                // GOAL ACHIEVED: Cancel the pre-authorized PaymentIntent hold!
-                if let piId = task.activePaymentIntentId {
-                    let tId = task.id
-                    Task {
-                        _ = try? await BackendClient.shared.cancelPaymentIntent(paymentIntentId: piId, taskId: tId)
-                    }
-                    task.activePaymentIntentId = nil
-                }
+                // GOAL ACHIEVED: No funds touched, $0 charged!
             } else if task.isPledged && task.pledgeAmount > 0 {
-                // DEADLINE MISSED: Capture or Forfeit the PaymentIntent!
+                // DEADLINE MISSED: Charge the vaulted card off-session then and there!
                 task.forfeitedCount += 1
                 task.totalForfeitedAmount += task.pledgeAmount
 
-                if let piId = task.activePaymentIntentId {
-                    let cents = Int64(task.pledgeAmount * 100)
-                    Task {
-                        _ = try? await BackendClient.shared.capturePaymentIntent(paymentIntentId: piId, amountCents: cents)
-                    }
-                    task.activePaymentIntentId = nil
-                } else if let custId = BackendClient.shared.currentCustomerId {
+                if let custId = BackendClient.shared.currentCustomerId {
                     let cents = Int64(task.pledgeAmount * 100)
                     let title = task.title
                     let tId = task.id

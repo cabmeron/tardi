@@ -12,6 +12,10 @@ type Config struct {
 	StripeSecretKey  string
 	PledgeHMACSecret string
 	DatabaseURL      string
+	RedisAddr        string
+	RedisPassword    string
+	RedisDB          int
+	PollIntervalMs   int
 	IsTestMode       bool
 }
 
@@ -72,11 +76,22 @@ func Load() *Config {
 		hmacSecret = "tardi_dev_hmac_secret_key_32_bytes_long!!"
 	}
 
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+
 	return &Config{
 		Port:             port,
 		StripeSecretKey:  stripeKey,
 		PledgeHMACSecret: hmacSecret,
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
+		RedisAddr:        redisAddr,
+		RedisPassword:    redisPassword,
+		RedisDB:          0,
+		PollIntervalMs:   100, // 100ms high-precision polling
 		IsTestMode:       isTestMode,
 	}
 }

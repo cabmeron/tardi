@@ -9,10 +9,10 @@ struct NewTaskSheet: View {
     let node: LocationNode
 
     @State private var taskId = Self.generateUniqueTaskId()
-    @State private var selectedWeekdays: Set<Int> = [2, 3, 4, 5, 6] // Mon-Fri default
+    @State private var selectedWeekdays: Set<Int> = [Calendar.current.component(.weekday, from: Date())]
     @State private var isOneTime = true
-    @State private var oneTimeDate = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-    @State private var deadlineTime = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var oneTimeDate = Date()
+    @State private var deadlineTime = Date()
     @State private var pledgeAmount: Double = 0.0
 
     static func generateUniqueTaskId() -> String {

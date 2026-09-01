@@ -201,12 +201,12 @@ final class HabitTask {
     }
 
     @MainActor
-    func checkInEarly(now: Date = Date(), in context: ModelContext) {
+    func checkInEarly(now: Date = Date(), isLocationVerified: Bool = true, distanceMeters: Double? = nil, in context: ModelContext) {
         guard let deadline = nextDeadline(after: now) else { return }
         streak += 1
         lastEvaluatedDeadline = deadline
 
-        let record = CheckInRecord(date: now, success: true, task: self)
+        let record = CheckInRecord(date: now, success: true, isLocationVerified: isLocationVerified, distanceMeters: distanceMeters, task: self)
         context.insert(record)
         try? context.save()
 
