@@ -79,12 +79,24 @@ final class HabitTask {
         }
     }
 
+    /// Exact deadline time formatted with user's locale short time, e.g. "10:15 AM" or "5:37 PM"
     var formattedDeadlineTime: String {
-        daylightPhaseDescription
+        var components = DateComponents()
+        components.hour = deadlineHour
+        components.minute = deadlineMinute
+        if let date = Calendar.current.date(from: components) {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        }
+        let period = deadlineHour >= 12 ? "PM" : "AM"
+        let hour12 = deadlineHour == 0 ? 12 : (deadlineHour > 12 ? deadlineHour - 12 : deadlineHour)
+        return String(format: "%d:%02d %@", hour12, deadlineMinute, period)
     }
 
+    /// Complete schedule summary displaying exact day/date and exact time (e.g. "Tue, Sep 1 at 5:37 PM" or "Daily at 10:15 AM")
     var scheduleSummary: String {
-        let phase = daylightPhaseDescription
+        let time = formattedDeadlineTime
         if isRecurring {
             let symbols = Calendar.current.shortWeekdaySymbols
             let names = weekdays.sorted().compactMap { weekday -> String? in
@@ -92,18 +104,22 @@ final class HabitTask {
                 return symbols[weekday - 1]
             }
             if weekdays.count == 7 {
-                return "Daily · \(phase)"
+                return "Daily at \(time)"
             } else if weekdays == [2, 3, 4, 5, 6] {
-                return "Weekdays · \(phase)"
+                return "Weekdays at \(time)"
+            } else if weekdays == [1, 7] {
+                return "Weekends at \(time)"
+            } else if names.count == 1 {
+                return "Every \(names[0]) at \(time)"
             } else {
-                return "\(names.joined(separator: ", ")) · \(phase)"
+                return "\(names.joined(separator: ", ")) at \(time)"
             }
         } else if let date = oneTimeDate {
             let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            return "\(formatter.string(from: date)) · \(phase)"
+            formatter.dateFormat = "EEE, MMM d"
+            return "\(formatter.string(from: date)) at \(time)"
         }
-        return phase
+        return "At \(time)"
     }
 
     /// The most recent deadline at or before `referenceDate` that hasn't been scored yet
@@ -146,38 +162,122 @@ final class HabitTask {
         }
     }
 
+    /// The active relevant deadline for this task:
+    /// Prioritizes any uncompleted pending/overdue deadline for today, then the next upcoming future deadline.
+    func currentOrUpcomingDeadline(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Date? {
+        if !isCompletedForToday(asOf: referenceDate, calendar: calendar) {
+            if let pending = pendingDeadline(asOf: referenceDate, calendar: calendar) {
+                return pending
+            }
+        }
+        return nextDeadline(after: referenceDate, calendar: calendar)
+    }
+
+    /// True if the deadline has passed without a successful check-in (evaluated as forfeited or elapsed)
+    func isMissed(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Bool {
+        if isCompletedForToday(asOf: referenceDate, calendar: calendar) {
+            return false
+        }
+        // 1. One-time task whose scheduled deadline is in the past
+        if !isRecurring {
+            guard let oneTimeDate,
+                  let deadline = calendar.date(bySettingHour: deadlineHour, minute: deadlineMinute, second: 0, of: oneTimeDate) else {
+                return false
+            }
+            return referenceDate >= deadline
+        }
+        // 2. Evaluated today as unsuccessful (streak reset, lastEvaluatedDeadline set to today's deadline)
+        if let last = lastEvaluatedDeadline, calendar.isDate(last, inSameDayAs: referenceDate), streak == 0 {
+            return true
+        }
+        // 3. Recurring task: if today was a scheduled day and today's deadline has already elapsed
+        let weekday = calendar.component(.weekday, from: referenceDate)
+        if weekdays.contains(weekday) {
+            guard let todayDeadline = calendar.date(bySettingHour: deadlineHour, minute: deadlineMinute, second: 0, of: referenceDate) else {
+                return false
+            }
+            if referenceDate >= todayDeadline {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Total amount of money missed/forfeited for this task (includes recorded forfeitures and current missed deadline stake)
+    func amountMissed(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Double {
+        if totalForfeitedAmount > 0 {
+            return totalForfeitedAmount
+        }
+        if isMissed(asOf: referenceDate, calendar: calendar) {
+            return pledgeAmount
+        }
+        return 0.0
+    }
+
+    /// True if the task is actively counting down to a future deadline (not completed, not missed, and within 24h)
+    func isArmed(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard isActive else { return false }
+        if isCompletedForToday(asOf: referenceDate, calendar: calendar) { return false }
+        if isMissed(asOf: referenceDate, calendar: calendar) { return false }
+        guard let deadline = nextDeadline(after: referenceDate, calendar: calendar) else { return false }
+        guard deadline > referenceDate else { return false }
+        let remaining = deadline.timeIntervalSince(referenceDate)
+        return remaining <= 24 * 3600
+    }
+
     /// Calculates the burning countdown progress (1.0 = full cord at start, burns down to 0.0 at deadline).
-    /// Uses a responsive urgency curve so that whether a task is 8 hours away or 30 minutes away,
-    /// the burning ember and cord length accurately reflect relative urgency.
+    /// Uses an adaptive urgency curve so that whether a task is 5 minutes, 30 minutes, or 8 hours away,
+    /// the remaining countdown cord length is clearly visible and accurately reflects urgency.
     func fuseProgress(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Double? {
         if isCompletedForToday(asOf: referenceDate) {
             return 1.0
         }
+        if isMissed(asOf: referenceDate, calendar: calendar) {
+            return nil
+        }
         guard let deadline = nextDeadline(after: referenceDate, calendar: calendar) else { return nil }
         let remaining = deadline.timeIntervalSince(referenceDate)
-        guard remaining > 0 else { return 0.0 }
+        guard remaining > 0 else { return nil }
 
-        // Dynamic urgency scale over a 12-hour active burn window
-        let maxWindow: TimeInterval = 12 * 3600
-        if remaining >= maxWindow {
-            return 0.95
+        // Determine effective countdown horizon:
+        let createdSpan = deadline.timeIntervalSince(createdAt)
+        let effectiveWindow: TimeInterval
+
+        if !isRecurring && createdSpan >= 60 && createdSpan <= 12 * 3600 {
+            // Task was explicitly set for a specific duration (e.g. 5m, 15m, 1h, 4h)
+            effectiveWindow = createdSpan
+        } else if remaining <= 3600 {
+            // Final hour sprint: scale across 60 minutes so short deadlines show prominently
+            effectiveWindow = 3600
+        } else if remaining <= 4 * 3600 {
+            // Near term: scale across 4 hours
+            effectiveWindow = 4 * 3600
+        } else {
+            // Long term: scale across 12 hours
+            effectiveWindow = 12 * 3600
         }
-        let ratio = remaining / maxWindow
-        let progress = pow(ratio, 0.75)
-        return min(max(progress, 0.04), 0.96)
+
+        let ratio = max(min(remaining / effectiveWindow, 1.0), 0.0)
+        // Gentle power curve ensuring clean visual weight even in the final minutes
+        let progress = pow(ratio, 0.70)
+        return min(max(progress, 0.08), 0.98)
     }
 
     func isCompletedForToday(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Bool {
-        guard let last = lastEvaluatedDeadline else { return false }
-        if isRecurring {
-            return calendar.isDate(last, inSameDayAs: referenceDate)
-        } else {
-            return true
+        // 1. If check-in history records exist, check for a successful check-in today
+        if !history.isEmpty {
+            return history.contains { $0.success && calendar.isDate($0.date, inSameDayAs: referenceDate) }
         }
+        // 2. Fallback: must have an evaluated deadline today AND a positive streak (successful disarm)
+        guard let last = lastEvaluatedDeadline else { return false }
+        if streak > 0 {
+            return calendar.isDate(last, inSameDayAs: referenceDate)
+        }
+        return false
     }
 
     func timeRemaining(asOf referenceDate: Date = Date()) -> TimeInterval? {
-        guard let deadline = nextDeadline(after: referenceDate) else { return nil }
+        guard let deadline = currentOrUpcomingDeadline(asOf: referenceDate) else { return nil }
         return max(deadline.timeIntervalSince(referenceDate), 0)
     }
 
@@ -185,7 +285,11 @@ final class HabitTask {
         if isCompletedForToday(asOf: referenceDate) {
             return "Done"
         }
-        guard let remaining = timeRemaining(asOf: referenceDate) else { return "Passed" }
+        guard let deadline = currentOrUpcomingDeadline(asOf: referenceDate) else { return "Passed" }
+        let remaining = deadline.timeIntervalSince(referenceDate)
+        if remaining <= 0 {
+            return "Armed"
+        }
         let totalSeconds = Int(remaining)
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
@@ -202,11 +306,12 @@ final class HabitTask {
 
     @MainActor
     func checkInEarly(now: Date = Date(), isLocationVerified: Bool = true, distanceMeters: Double? = nil, in context: ModelContext) {
-        guard let deadline = nextDeadline(after: now) else { return }
+        let deadline = currentOrUpcomingDeadline(asOf: now) ?? nextDeadline(after: now) ?? now
         streak += 1
         lastEvaluatedDeadline = deadline
 
         let record = CheckInRecord(date: now, success: true, isLocationVerified: isLocationVerified, distanceMeters: distanceMeters, task: self)
+        history.append(record)
         context.insert(record)
         try? context.save()
 

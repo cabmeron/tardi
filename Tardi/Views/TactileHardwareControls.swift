@@ -132,7 +132,7 @@ struct BurningFuseCountdownView: View {
             // 2. Rotary 48-Step LED Sequencer Ring (Teenage Engineering E-Fuse)
             if taskTitle != nil, !isCompleted {
                 let totalSteps = 48
-                let activeSteps = Int(progress * Double(totalSteps))
+                let activeSteps = max(1, Int((progress * Double(totalSteps)).rounded()))
 
                 // Circular Dark LCD Well Background
                 Circle()

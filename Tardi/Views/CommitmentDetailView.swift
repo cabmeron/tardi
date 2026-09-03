@@ -187,9 +187,15 @@ struct CommitmentDetailView: View {
                 Text("\(node.tasks.count) \(node.tasks.count == 1 ? "Task" : "Tasks")")
                 Text("•")
                 Text("\(Int(node.radius))m Geofence")
+                let totalMissed = node.tasks.reduce(0.0) { $0 + $1.amountMissed() }
+                if totalMissed > 0 {
+                    Text("•")
+                    Text("-$\(Int(totalMissed))")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(.red)
+                }
             }
             .font(.system(size: 12, weight: .medium, design: .rounded))
-            .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .multilineTextAlignment(.center)
@@ -203,13 +209,14 @@ struct CommitmentDetailView: View {
         let progress = node.fuseProgress(asOf: now) ?? (node.tasks.isEmpty ? 0 : 1)
         let timeRemaining = nearest?.timeRemaining(asOf: now) ?? 0
         let distance = calculatedDistance
+
         let totalStreak = node.tasks.reduce(0) { $0 + $1.streak }
         let pledgeAmount = nearest?.pledgeAmount ?? 0.0
         let isPledged = nearest?.isPledged ?? false
 
-        // Only show task countdown if there is an active pending task not completed today.
-        // Once checked in, activeTaskTitle is nil, which automatically shows the Tactical Geodesic Radar Scope!
-        let activeTaskTitle: String? = (nearest != nil && !nearest!.isCompletedForToday(asOf: now)) ? nearest?.title : nil
+        // Only show task countdown if there is an active pending task not completed today and not missed.
+        // Once checked in or missed, activeTaskTitle is nil, which automatically shows the Tactical Geodesic Radar Scope!
+        let activeTaskTitle: String? = (nearest != nil && !nearest!.isCompletedForToday(asOf: now) && !nearest!.isMissed(asOf: now)) ? nearest?.title : nil
 
         return BurningFuseCountdownView(
             progress: progress,
@@ -231,10 +238,10 @@ struct CommitmentDetailView: View {
     // MARK: - 3. Tasks at this Location Section
 
     private func tasksSection(now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("TASKS AT THIS LOCATION")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(.secondary)
                     .tracking(1)
 
@@ -263,7 +270,7 @@ struct CommitmentDetailView: View {
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             } else {
                 VStack(spacing: 8) {
-                    ForEach(node.tasks) { task in
+                    ForEach(node.tasksNewestFirst) { task in
                         taskRow(task: task, now: now)
                     }
                 }
@@ -273,6 +280,8 @@ struct CommitmentDetailView: View {
 
     private func taskRow(task: HabitTask, now: Date) -> some View {
         let isDone = task.isCompletedForToday(asOf: now)
+        let isMissed = task.isMissed(asOf: now)
+        let missedAmount = task.amountMissed(asOf: now)
 
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
@@ -305,31 +314,45 @@ struct CommitmentDetailView: View {
                     Text(task.scheduleSummary)
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
-
-                    if task.totalForfeitedAmount > 0 {
-                        Text("•")
-                            .foregroundStyle(.secondary)
-                        Text("$\(Int(task.totalForfeitedAmount)) lost")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.red.opacity(0.85))
-                    }
                 }
             }
 
             Spacer()
 
-            // Early Disengage or Disengaged Pill
+            // Status: Green check when completed, negative cash amount when missed, or Disengage/Outside
             if isDone {
                 HStack(spacing: 4) {
-                    Image(systemName: "bolt.badge.checkmark.fill")
-                        .foregroundStyle(.green)
-                    Text("Disengaged")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.green)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(Color.green.opacity(0.12), in: Capsule())
+                .background(Color.green.opacity(0.16), in: Capsule())
+                .overlay(
+                    Capsule().stroke(Color.green.opacity(0.55), lineWidth: 1.0)
+                )
+            } else if isMissed && missedAmount > 0 {
+                HStack(spacing: 4) {
+                    Text("-$\(Int(missedAmount))")
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.red)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.red.opacity(0.12), in: Capsule())
+                .overlay(
+                    Capsule().stroke(Color.red.opacity(0.35), lineWidth: 0.8)
+                )
+            } else if isMissed {
+                HStack(spacing: 4) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color(.tertiarySystemFill), in: Capsule())
             } else {
                 Button {
                     if isInsideGeofence {
