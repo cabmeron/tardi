@@ -279,17 +279,13 @@ struct BurningFuseCountdownView: View {
                         Text("CIRCUIT DISENGAGED")
                             .font(.system(size: 13, weight: .black, design: .rounded))
                             .foregroundStyle(.white)
-                            .tracking(1.2)
 
                         Text("FUSE PRESERVED • STAKE SECURED")
                             .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(Color.white.opacity(0.75))
                             .tracking(1.4)
                     }
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.82).combined(with: .opacity),
-                        removal: .scale(scale: 0.95).combined(with: .opacity)
-                    ))
+                    .transition(.opacity)
                 } else if taskTitle != nil {
                     // MARK: - Teenage Engineering Inverted LCD Display
                     VStack(spacing: 4) {
@@ -305,12 +301,9 @@ struct BurningFuseCountdownView: View {
                                 .font(.system(size: 26, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.white)
                         } else {
-                            HStack(spacing: 7) {
-                                Text(String(format: "%02d", minutes))
-                                Text(String(format: "%02d", seconds))
-                            }
-                            .font(.system(size: 34, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.white)
+                            Text(String(format: "%02d:%02d", minutes, seconds))
+                                .font(.system(size: 34, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.white)
                         }
 
                         // Subtitle
@@ -356,6 +349,7 @@ struct BurningFuseCountdownView: View {
                         .background(Color.black.opacity(0.6), in: Capsule())
                         .overlay(Capsule().stroke(isInsideLocation ? Color.green.opacity(0.35) : Color.white.opacity(0.18), lineWidth: 0.5))
                     }
+                    .transition(.opacity)
                 } else {
                     // MARK: - Tactical Geodesic Radar Scope Center Telemetry
                     VStack(spacing: 3) {
@@ -547,19 +541,21 @@ struct IndustrialPlungerButton: View {
 
                 // Progress Fill Track (Safety Orange Breaker Charge)
                 GeometryReader { geo in
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 1.0, green: 0.45, blue: 0.08).opacity(0.4),
-                                    Color(red: 1.0, green: 0.45, blue: 0.08)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 1.0, green: 0.45, blue: 0.08).opacity(0.4),
+                                        Color(red: 1.0, green: 0.45, blue: 0.08)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
-                        )
-                        .frame(width: geo.size.width * progress)
-                        .animation(.linear(duration: 0.05), value: progress)
+                            .frame(width: geo.size.width * progress)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(height: 52)
                 .padding(.horizontal, 3)
@@ -626,6 +622,9 @@ struct IndustrialPlungerButton: View {
                         }
                     }
                 }
+                .transition(.identity)
+                .animation(nil, value: isCompleted)
+                .animation(nil, value: isPressed)
                 .padding(.horizontal, 14)
                 .offset(y: isPressed ? 2 : 0)
             }
@@ -960,6 +959,7 @@ struct SpatialParticleOverlay: View {
     @State private var burstParticles: [BurstParticle] = []
     @State private var laserSweepY: CGFloat = 0.0
     @State private var sonarRipple: CGFloat = 0.0
+    @State private var burstTimer: Timer? = nil
 
     struct ScanParticle: Identifiable {
         let id = UUID()
@@ -1008,7 +1008,7 @@ struct SpatialParticleOverlay: View {
                     let h = geo.size.height
 
                     ZStack {
-                        // Ambient Tactical Radar Laser Sweep Line
+                        // Ambient Tactical Radar Laser Sweep Line (Only during scanning hold)
                         Rectangle()
                             .fill(
                                 LinearGradient(
@@ -1024,39 +1024,38 @@ struct SpatialParticleOverlay: View {
                                 )
                             )
                             .frame(height: 2)
-                            .shadow(color: Color.green.opacity(0.9), radius: 6)
-                            .offset(y: (h * laserSweepY) - (h / 2))
+                            .offset(y: (laserSweepY - 0.5) * h)
+                            .blur(radius: 1.5)
+                            .opacity(!isBursting && isActive ? 1.0 : 0.0)
 
-                        // High-Performance Metal Canvas Particle Emitter
+                        // High-Performance Ambient & Burst Particle Canvas
                         TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
                             Canvas { ctx, size in
-                                let speedFactor = 1.0 + Double(progress) * 3.5
-                                let time = timeline.date.timeIntervalSinceReferenceDate
+                                let t = timeline.date.timeIntervalSinceReferenceDate
 
-                                for p in particles {
-                                    let driftX = (p.x + p.vx * CGFloat(speedFactor) * CGFloat(time.truncatingRemainder(dividingBy: 10)))
-                                    let driftY = (p.y + p.vy * CGFloat(speedFactor) * CGFloat(time.truncatingRemainder(dividingBy: 10)))
+                                // Render Scanning Floating Ambient Dust/Particles (Only during scanning hold)
+                                if !isBursting {
+                                    for p in particles {
+                                        let driftX = sin(t * 1.5 + Double(p.x * 10)) * 12
+                                        let driftY = cos(t * 1.2 + Double(p.y * 10)) * 12
+                                        let actualX = (p.x * size.width) + CGFloat(driftX)
+                                        let actualY = (p.y * size.height) + CGFloat(driftY)
 
-                                    let modX = driftX.truncatingRemainder(dividingBy: 1.0)
-                                    let modY = driftY.truncatingRemainder(dividingBy: 1.0)
+                                        let color: Color = {
+                                            switch p.colorIdx {
+                                            case 0: return Color.green
+                                            case 1: return Color(red: 1.0, green: 0.45, blue: 0.08)
+                                            default: return Color.white
+                                            }
+                                        }()
 
-                                    let actualX = (modX < 0 ? modX + 1.0 : modX) * size.width
-                                    let actualY = (modY < 0 ? modY + 1.0 : modY) * size.height
-
-                                    let color: Color = {
-                                        switch p.colorIdx {
-                                        case 0: return Color(red: 1.0, green: 0.45, blue: 0.08)
-                                        case 1: return Color(red: 1.0, green: 0.75, blue: 0.2)
-                                        default: return Color.white
-                                        }
-                                    }()
-
-                                    let pRect = CGRect(x: actualX - p.radius, y: actualY - p.radius, width: p.radius * 2, height: p.radius * 2)
-                                    ctx.opacity = p.baseAlpha * (0.6 + Double(progress) * 0.4)
-                                    ctx.fill(Circle().path(in: pRect), with: .color(color))
+                                        let pRect = CGRect(x: actualX - p.radius, y: actualY - p.radius, width: p.radius * 2, height: p.radius * 2)
+                                        ctx.opacity = p.baseAlpha * (0.6 + Double(progress) * 0.4)
+                                        ctx.fill(Circle().path(in: pRect), with: .color(color))
+                                    }
                                 }
 
-                                // Render Burst Explosion Particles
+                                // Render Burst Explosion Particles (Exclusively during defusal completion)
                                 for bp in burstParticles {
                                     let bpRect = CGRect(x: bp.x - bp.radius, y: bp.y - bp.radius, width: bp.radius * 2, height: bp.radius * 2)
                                     ctx.opacity = bp.alpha
@@ -1065,48 +1064,54 @@ struct SpatialParticleOverlay: View {
                             }
                         }
 
-                        // Concentric Sonar Pulse Wavefronts
+                        // Concentric Sonar Pulse Wavefronts (Only during scanning hold)
                         ForEach(0..<3) { i in
                             Circle()
                                 .stroke(Color(red: 1.0, green: 0.45, blue: 0.08).opacity(0.35 - Double(i) * 0.08), lineWidth: 1.5)
                                 .frame(width: CGFloat(i + 1) * 160 * (0.6 + progress * 0.9))
                                 .scaleEffect(sonarRipple > 0 ? (1.0 + sonarRipple * 0.8) : 1.0)
                         }
+                        .opacity(!isBursting && isActive ? 1.0 : 0.0)
 
-                        // Scanning HUD Telemetry Header
+                        // Scanning HUD Telemetry Header (Only during scanning hold)
                         VStack {
                             HStack(spacing: 6) {
                                 Circle()
-                                    .fill(isBursting ? Color.green : Color(red: 1.0, green: 0.45, blue: 0.08))
+                                    .fill(Color(red: 1.0, green: 0.45, blue: 0.08))
                                     .frame(width: 6, height: 6)
-                                    .shadow(color: isBursting ? Color.green : Color(red: 1.0, green: 0.45, blue: 0.08), radius: 4)
+                                    .shadow(color: Color(red: 1.0, green: 0.45, blue: 0.08), radius: 4)
 
-                                Text(isBursting ? "CIRCUIT DISENGAGED // FUSE PRESERVED" : "DISENGAGING CIRCUIT BREAKER // \(Int(progress * 100))%")
+                                Text("DISENGAGING CIRCUIT BREAKER // \(Int(progress * 100))%")
                                     .font(.system(size: 11, weight: .black, design: .monospaced))
-                                    .foregroundStyle(isBursting ? Color.green : Color(red: 1.0, green: 0.45, blue: 0.08))
+                                    .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.08))
                                     .tracking(1.5)
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 6)
                             .background(Color.black.opacity(0.7), in: Capsule())
-                            .overlay(Capsule().stroke((isBursting ? Color.green : Color(red: 1.0, green: 0.45, blue: 0.08)).opacity(0.4), lineWidth: 1))
+                            .overlay(Capsule().stroke(Color(red: 1.0, green: 0.45, blue: 0.08).opacity(0.4), lineWidth: 1))
                             .padding(.top, 50)
 
                             Spacer()
                         }
+                        .opacity(!isBursting && isActive ? 1.0 : 0.0)
                     }
                 }
                 .ignoresSafeArea()
+                .transition(.identity)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: isActive)
-        .animation(.easeInOut(duration: 0.35), value: isBursting)
-        .onAppear {
-            withAnimation(.linear(duration: 3.2).repeatForever(autoreverses: true)) {
-                laserSweepY = 1.0
-            }
-            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
-                sonarRipple = 0.5
+        .onChange(of: isActive) { _, active in
+            if active {
+                withAnimation(.linear(duration: 3.2).repeatForever(autoreverses: true)) {
+                    laserSweepY = 1.0
+                }
+                withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                    sonarRipple = 0.5
+                }
+            } else if !isBursting {
+                laserSweepY = 0.0
+                sonarRipple = 0.0
             }
         }
         .onChange(of: isBursting) { _, bursting in
@@ -1114,9 +1119,15 @@ struct SpatialParticleOverlay: View {
                 triggerBurst()
             }
         }
+        .onDisappear {
+            burstTimer?.invalidate()
+            burstTimer = nil
+            burstParticles.removeAll()
+        }
     }
 
     private func triggerBurst() {
+        burstTimer?.invalidate()
         let center = CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height * 0.6)
         var newBurst: [BurstParticle] = []
         for _ in 0..<90 {
@@ -1138,7 +1149,7 @@ struct SpatialParticleOverlay: View {
 
         let steps = 24
         var currentStep = 0
-        Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { timer in
+        burstTimer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { timer in
             currentStep += 1
             for idx in burstParticles.indices {
                 burstParticles[idx].x += burstParticles[idx].vx
@@ -1149,9 +1160,9 @@ struct SpatialParticleOverlay: View {
             }
             if currentStep >= steps {
                 timer.invalidate()
+                burstTimer = nil
                 burstParticles.removeAll()
             }
         }
     }
 }
-

@@ -57,3 +57,43 @@ final class PaymentSheetManager: ObservableObject {
         self.haptics.notificationOccurred(.warning)
     }
 }
+
+/// Centralized pre-warmed feedback generators to avoid continuous allocations during view rebuilds
+@MainActor
+enum HapticManager {
+    static let light = UIImpactFeedbackGenerator(style: .light)
+    static let medium = UIImpactFeedbackGenerator(style: .medium)
+    static let heavy = UIImpactFeedbackGenerator(style: .heavy)
+    static let rigid = UIImpactFeedbackGenerator(style: .rigid)
+    static let soft = UIImpactFeedbackGenerator(style: .soft)
+    static let selection = UISelectionFeedbackGenerator()
+    static let notification = UINotificationFeedbackGenerator()
+
+    static func triggerLight() {
+        light.impactOccurred()
+    }
+
+    static func triggerMedium() {
+        medium.impactOccurred()
+    }
+
+    static func triggerHeavy() {
+        heavy.impactOccurred()
+    }
+
+    static func triggerRigid() {
+        rigid.impactOccurred()
+    }
+
+    static func triggerSoft() {
+        soft.impactOccurred()
+    }
+
+    static func triggerSelection() {
+        selection.selectionChanged()
+    }
+
+    static func triggerNotification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        notification.notificationOccurred(type)
+    }
+}

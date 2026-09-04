@@ -71,6 +71,16 @@ final class LocationManager: NSObject, ObservableObject {
 
     private func node(for region: CLRegion, in context: ModelContext) -> LocationNode? {
         let identifier = region.identifier
+        if identifier.hasPrefix("node-"),
+           let uuid = UUID(uuidString: String(identifier.dropFirst(5))) {
+            var descriptor = FetchDescriptor<LocationNode>(
+                predicate: #Predicate { $0.id == uuid }
+            )
+            descriptor.fetchLimit = 1
+            if let result = try? context.fetch(descriptor).first {
+                return result
+            }
+        }
         let descriptor = FetchDescriptor<LocationNode>()
         guard let all = try? context.fetch(descriptor) else { return nil }
         return all.first { $0.regionIdentifier == identifier }

@@ -34,20 +34,29 @@ struct PresenceDot: View {
     }
 }
 
+/// Evaluated snapshot of a node's state to prevent duplicate queries between parent and child components
+struct NodeUrgencySnapshot {
+    let isArmed: Bool
+    let isDone: Bool
+    let isMissed: Bool
+    let remaining: TimeInterval
+    let progress: Double
+    let totalMissed: Double
+    let nearestTask: HabitTask?
+}
+
 /// A location node's map marker: a clean lined circle when unassigned,
 /// or a dynamic burning fuse countdown ring displaying relative urgency when a task is armed.
 struct FuseRingDot: View {
     let node: LocationNode
-    let now: Date
+    let snapshot: NodeUrgencySnapshot
 
     var body: some View {
-        let isArmed = node.hasArmedTask(asOf: now)
-        let isDone = node.isAllTasksCompletedToday(asOf: now) || node.isAnyTaskCompletedToday(asOf: now)
-        let totalMissed = node.tasks.reduce(0.0) { $0 + $1.amountMissed(asOf: now) }
-        let isMissed = !isDone && node.hasMissedTask(asOf: now) && totalMissed > 0
-        let nearestTask = node.nearestUpcomingTask(after: now)
-        let remaining = nearestTask?.timeRemaining(asOf: now) ?? 0
-        let progress = isArmed ? (node.fuseProgress(asOf: now) ?? 0) : 0
+        let isArmed = snapshot.isArmed
+        let isDone = snapshot.isDone
+        let isMissed = snapshot.isMissed
+        let remaining = snapshot.remaining
+        let progress = isArmed ? snapshot.progress : 0
 
         // Relative urgency thresholds
         let isCritical = remaining > 0 && remaining <= 1800 // < 30m: Critical urgency
@@ -155,49 +164,48 @@ struct FuseRingDot: View {
 /// Floating transport mode selector with smooth capsule highlight and haptics
 struct TravelModePickerBar: View {
     @Binding var selectedMode: TravelMode
-    private let haptic = UIImpactFeedbackGenerator(style: .light)
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(TravelMode.allCases) { mode in
-                    let isSelected = selectedMode == mode
-                    Button {
-                        haptic.impactOccurred()
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
-                            selectedMode = mode
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: mode.iconName)
-                                .font(.system(size: 13, weight: isSelected ? .bold : .medium))
-                            Text(mode.rawValue)
-                                .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .rounded))
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(
-                            isSelected ? Color.accentColor : Color(.tertiarySystemFill).opacity(0.7),
-                            in: Capsule()
-                        )
-                        .foregroundStyle(isSelected ? .white : .primary)
-                    }
-                    .buttonStyle(.plain)
+                    modeButton(for: mode)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
         }
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.secondary.opacity(0.18), lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+    }
+
+    @ViewBuilder
+    private func modeButton(for mode: TravelMode) -> some View {
+        let isSelected = selectedMode == mode
+        Button {
+            HapticManager.triggerLight()
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
+                selectedMode = mode
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: mode.iconName)
+                    .font(.system(size: 11, weight: .bold))
+                Text(mode.rawValue)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                isSelected ? Color.black : Color(.secondarySystemGroupedBackground),
+                in: Capsule()
+            )
+            .foregroundStyle(isSelected ? Color.white : Color.secondary)
+        }
+        .buttonStyle(.plain)
     }
 }
 
-// MARK: - Map Node Markers
 
-/// A high-visibility interactive location marker for the real map.
-/// Displays a clean lined circle if idle/unassigned, or a physical burning fuse indicator when armed.
+/// Dynamic map marker displaying node presence, burning fuse countdown, and state pills
 struct NodeMarkerView: View {
     let node: LocationNode
     let now: Date
@@ -210,27 +218,41 @@ struct NodeMarkerView: View {
         TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
             let currentNow = timeline.date
             let isArmed = node.hasArmedTask(asOf: currentNow)
-            let nearest = node.nearestUpcomingTask(after: currentNow)
+            let isDone = node.isAllTasksCompletedToday(asOf: currentNow) || node.isAnyTaskCompletedToday(asOf: currentNow)
+            let nearest = isArmed ? node.nearestUpcomingTask(after: currentNow) : nil
             let remaining = nearest?.timeRemaining(asOf: currentNow) ?? 0
+            let progress = isArmed ? (node.fuseProgress(asOf: currentNow) ?? 0) : 0
+            let totalMissed = !isDone ? node.tasks.reduce(0.0) { $0 + $1.amountMissed(asOf: currentNow) } : 0.0
+            let isMissed = !isDone && totalMissed > 0 && node.hasMissedTask(asOf: currentNow)
+
+            let snapshot = NodeUrgencySnapshot(
+                isArmed: isArmed,
+                isDone: isDone,
+                isMissed: isMissed,
+                remaining: remaining,
+                progress: progress,
+                totalMissed: totalMissed,
+                nearestTask: nearest
+            )
 
             VStack(spacing: 3) {
                 // Urgency & Travel ETA Pill
                 if showDetailCard {
-                    if isArmed {
+                    if snapshot.isArmed {
                         HStack(spacing: 4) {
-                            if let nearest, nearest.isPledged && nearest.pledgeAmount > 0 {
+                            if let nearest = snapshot.nearestTask, nearest.isPledged && nearest.pledgeAmount > 0 {
                                 Text("$\(Int(nearest.pledgeAmount))")
                                     .font(.system(size: 9, weight: .black, design: .rounded))
-                                    .foregroundStyle(remaining <= 1800 ? Color.red : Color.orange)
+                                    .foregroundStyle(snapshot.remaining <= 1800 ? Color.red : Color.orange)
                             }
 
                             // Urgency Flame Icon
-                            Image(systemName: remaining <= 1800 ? "flame.fill" : (remaining <= 7200 ? "flame" : "timer"))
+                            Image(systemName: snapshot.remaining <= 1800 ? "flame.fill" : (snapshot.remaining <= 7200 ? "flame" : "timer"))
                                 .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(remaining <= 1800 ? Color.red : (remaining <= 7200 ? Color.orange : Color.primary))
+                                .foregroundStyle(snapshot.remaining <= 1800 ? Color.red : (snapshot.remaining <= 7200 ? Color.orange : Color.primary))
 
                             // Relative countdown / phase text
-                            Text(nearest?.formattedTimeRemaining(asOf: currentNow) ?? "Armed")
+                            Text(snapshot.nearestTask?.formattedTimeRemaining(asOf: currentNow) ?? "Armed")
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                         }
                         .padding(.horizontal, 7)
@@ -238,13 +260,13 @@ struct NodeMarkerView: View {
                         .background(.ultraThinMaterial, in: Capsule())
                         .overlay(
                             Capsule().stroke(
-                                remaining <= 1800 ? Color.red.opacity(0.5) : (remaining <= 7200 ? Color.orange.opacity(0.4) : Color.secondary.opacity(0.18)),
-                                lineWidth: remaining <= 1800 ? 1.2 : 0.6
+                                snapshot.remaining <= 1800 ? Color.red.opacity(0.5) : (snapshot.remaining <= 7200 ? Color.orange.opacity(0.4) : Color.secondary.opacity(0.18)),
+                                lineWidth: snapshot.remaining <= 1800 ? 1.2 : 0.6
                             )
                         )
                         .foregroundStyle(.primary)
                         .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
-                    } else if node.isAllTasksCompletedToday(asOf: currentNow) || node.isAnyTaskCompletedToday(asOf: currentNow) {
+                    } else if snapshot.isDone {
                         HStack(spacing: 3) {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 11, weight: .black))
@@ -257,22 +279,19 @@ struct NodeMarkerView: View {
                             Capsule().stroke(Color.green.opacity(0.55), lineWidth: 1.0)
                         )
                         .shadow(color: Color.green.opacity(0.2), radius: 3, y: 1)
-                    } else if node.hasMissedTask(asOf: currentNow) {
-                        let totalMissed = node.tasks.reduce(0.0) { $0 + $1.amountMissed(asOf: currentNow) }
-                        if totalMissed > 0 {
-                            HStack(spacing: 3) {
-                                Text("-$\(Int(totalMissed))")
-                                    .font(.system(size: 10, weight: .black, design: .monospaced))
-                                    .foregroundStyle(.red)
-                            }
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            .overlay(
-                                Capsule().stroke(Color.red.opacity(0.35), lineWidth: 0.8)
-                            )
-                            .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
+                    } else if snapshot.isMissed && snapshot.totalMissed > 0 {
+                        HStack(spacing: 3) {
+                            Text("-$\(Int(snapshot.totalMissed))")
+                                .font(.system(size: 10, weight: .black, design: .monospaced))
+                                .foregroundStyle(.red)
                         }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(
+                            Capsule().stroke(Color.red.opacity(0.35), lineWidth: 0.8)
+                        )
+                        .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
                     }
                 }
 
@@ -286,7 +305,7 @@ struct NodeMarkerView: View {
                             .opacity(isPulsing ? 0 : 0.8)
                     }
 
-                    FuseRingDot(node: node, now: currentNow)
+                    FuseRingDot(node: node, snapshot: snapshot)
                 }
                 .frame(width: 36, height: 36)
 

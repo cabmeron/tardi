@@ -16,6 +16,22 @@ struct LofiMapView: View {
     @State private var showTravelLines = true
     @State private var showNodeCards = true
 
+    private struct ActiveRouteTarget {
+        let coordinate: CLLocationCoordinate2D
+        let isCurrentlyInside: Bool
+    }
+
+    private var activeRouteTargets: [ActiveRouteTarget] {
+        let now = Date()
+        return nodes.compactMap { node in
+            guard !node.isAnyTaskCompletedToday(asOf: now) && !node.activeTasks.isEmpty else { return nil }
+            return ActiveRouteTarget(
+                coordinate: CLLocationCoordinate2D(latitude: node.latitude, longitude: node.longitude),
+                isCurrentlyInside: node.isCurrentlyInside
+            )
+        }
+    }
+
     var body: some View {
         MapReader { proxy in
             ZStack(alignment: .trailing) {
@@ -102,62 +118,60 @@ struct LofiMapView: View {
                         onTapCoordinate(coordinate)
                     }
                 }
-                // High-performance, buttery-smooth vector route layer rendered via Canvas
+                // High-performance, power-efficient vector route layer rendered via Canvas (30 FPS capped)
                 .overlay {
                     if let userCoordinate, showTravelLines {
-                        TimelineView(.animation) { timeline in
-                            Canvas { context, _ in
-                                guard let userPoint = proxy.convert(userCoordinate, to: .local) else { return }
-                                let time = timeline.date.timeIntervalSinceReferenceDate
-                                let now = timeline.date
+                        let targets = activeRouteTargets
+                        if !targets.isEmpty {
+                            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                                Canvas { context, _ in
+                                    guard let userPoint = proxy.convert(userCoordinate, to: .local) else { return }
+                                    let time = timeline.date.timeIntervalSinceReferenceDate
 
-                                for node in nodes where !node.isAnyTaskCompletedToday(asOf: now) && !node.activeTasks.isEmpty {
-                                    let targetCoord = CLLocationCoordinate2D(
-                                        latitude: node.latitude,
-                                        longitude: node.longitude
-                                    )
-                                    guard let targetPoint = proxy.convert(targetCoord, to: .local) else { continue }
+                                    for target in targets {
+                                        guard let targetPoint = proxy.convert(target.coordinate, to: .local) else { continue }
 
-                                    let dx = targetPoint.x - userPoint.x
-                                    let dy = targetPoint.y - userPoint.y
-                                    let screenDist = sqrt(dx * dx + dy * dy)
-                                    guard screenDist > 4 else { continue }
+                                        let dx = targetPoint.x - userPoint.x
+                                        let dy = targetPoint.y - userPoint.y
+                                        let screenDist = sqrt(dx * dx + dy * dy)
+                                        guard screenDist > 4 else { continue }
 
-                                    let isInside = node.isCurrentlyInside
-                                    let baseColor = isInside ? Color.green : Color.accentColor
+                                        let isInside = target.isCurrentlyInside
+                                        let baseColor = isInside ? Color.green : Color.accentColor
 
-                                    var linePath = Path()
-                                    linePath.move(to: userPoint)
-                                    linePath.addLine(to: targetPoint)
+                                        var linePath = Path()
+                                        linePath.move(to: userPoint)
+                                        linePath.addLine(to: targetPoint)
 
-                                    // Subtle underlying static track
-                                    context.stroke(
-                                        linePath,
-                                        with: .color(baseColor.opacity(0.18)),
-                                        lineWidth: isInside ? 1.6 : 1.2
-                                    )
-
-                                    // Dynamic dash length adapted to on-screen zoom distance
-                                    let dashLen: CGFloat = max(min(screenDist * 0.035, 7.0), 3.5)
-                                    let gapLen: CGFloat = dashLen * 1.3
-                                    let cycle = dashLen + gapLen
-                                    let phase = CGFloat(time * 28).truncatingRemainder(dividingBy: cycle)
-
-                                    // Crisp, continuous flowing dash animation
-                                    context.stroke(
-                                        linePath,
-                                        with: .color(baseColor.opacity(isInside ? 0.85 : 0.7)),
-                                        style: StrokeStyle(
-                                            lineWidth: isInside ? 2.0 : 1.5,
-                                            lineCap: .round,
-                                            lineJoin: .round,
-                                            dash: [dashLen, gapLen],
-                                            dashPhase: -phase
+                                        // Subtle underlying static track
+                                        context.stroke(
+                                            linePath,
+                                            with: .color(baseColor.opacity(0.18)),
+                                            lineWidth: isInside ? 1.6 : 1.2
                                         )
-                                    )
+
+                                        // Dynamic dash length adapted to on-screen zoom distance
+                                        let dashLen: CGFloat = max(min(screenDist * 0.035, 7.0), 3.5)
+                                        let gapLen: CGFloat = dashLen * 1.3
+                                        let cycle = dashLen + gapLen
+                                        let phase = CGFloat(time * 28).truncatingRemainder(dividingBy: cycle)
+
+                                        // Crisp, continuous flowing dash animation
+                                        context.stroke(
+                                            linePath,
+                                            with: .color(baseColor.opacity(isInside ? 0.85 : 0.7)),
+                                            style: StrokeStyle(
+                                                lineWidth: isInside ? 2.0 : 1.5,
+                                                lineCap: .round,
+                                                lineJoin: .round,
+                                                dash: [dashLen, gapLen],
+                                                dashPhase: -phase
+                                            )
+                                        )
+                                    }
                                 }
+                                .allowsHitTesting(false)
                             }
-                            .allowsHitTesting(false)
                         }
                     }
                 }

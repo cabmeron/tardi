@@ -229,22 +229,21 @@ struct SolarDaylightArcPicker: View {
                         .fill(Color(.tertiarySystemGroupedBackground))
                         .frame(height: trackHeight)
                         .overlay(
-                            // Top/Left Inset Dark Shadow
                             RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
-                                .stroke(Color.black.opacity(0.18), lineWidth: 1.5)
-                                .blur(radius: 1.5)
-                                .offset(x: 1, y: 1.5)
-                                .mask(RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous))
+                                .strokeBorder(Color.black.opacity(0.12), lineWidth: 1.2)
                         )
                         .overlay(
-                            // Bottom/Right Inset Light Highlight
                             RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
-                                .stroke(Color.white.opacity(0.4), lineWidth: 1.5)
-                                .blur(radius: 1.5)
-                                .offset(x: -1, y: -1.5)
-                                .mask(RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous))
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [Color.black.opacity(0.15), Color.clear, Color.white.opacity(0.35)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.0
+                                )
                         )
-                        .shadow(color: Color.black.opacity(0.08), radius: 2, x: 0, y: 1)
+                        .shadow(color: Color.black.opacity(0.06), radius: 2, x: 0, y: 1)
 
                     // B. Micro-Engraved Typographic Time Intervals (Hour & Period)
                     HStack(spacing: 0) {
@@ -914,22 +913,21 @@ struct NeumorphicDateScrubberPicker: View {
                         .fill(Color(.tertiarySystemGroupedBackground))
                         .frame(height: trackHeight)
                         .overlay(
-                            // Top/Left Inset Dark Shadow for tactile debossing
                             RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
-                                .stroke(Color.black.opacity(0.18), lineWidth: 1.5)
-                                .blur(radius: 1.5)
-                                .offset(x: 1, y: 1.5)
-                                .mask(RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous))
+                                .strokeBorder(Color.black.opacity(0.12), lineWidth: 1.2)
                         )
                         .overlay(
-                            // Bottom/Right Inset Light Highlight
                             RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
-                                .stroke(Color.white.opacity(0.4), lineWidth: 1.5)
-                                .blur(radius: 1.5)
-                                .offset(x: -1, y: -1.5)
-                                .mask(RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous))
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [Color.black.opacity(0.15), Color.clear, Color.white.opacity(0.35)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.0
+                                )
                         )
-                        .shadow(color: Color.black.opacity(0.08), radius: 2, x: 0, y: 1)
+                        .shadow(color: Color.black.opacity(0.06), radius: 2, x: 0, y: 1)
 
                     // B. Micro-Engraved Typographic Date Intervals
                     HStack(spacing: 0) {
@@ -1184,17 +1182,18 @@ struct NeumorphicDateTrackView: View {
                         .frame(height: trackHeight)
                         .overlay(
                             RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
-                                .stroke(Color.black.opacity(0.16), lineWidth: 1.5)
-                                .blur(radius: 1.5)
-                                .offset(x: 1, y: 1.5)
-                                .mask(RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous))
+                                .strokeBorder(Color.black.opacity(0.12), lineWidth: 1.2)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
-                                .stroke(Color.white.opacity(0.4), lineWidth: 1.5)
-                                .blur(radius: 1.5)
-                                .offset(x: -1, y: -1.5)
-                                .mask(RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous))
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [Color.black.opacity(0.15), Color.clear, Color.white.opacity(0.35)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.0
+                                )
                         )
                         .shadow(color: Color.black.opacity(0.06), radius: 2, x: 0, y: 1)
 

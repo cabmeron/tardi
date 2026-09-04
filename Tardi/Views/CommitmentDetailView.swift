@@ -28,60 +28,56 @@ struct CommitmentDetailView: View {
     @State private var isScanBursting = false
     @State private var scanBurstTimer: Task<Void, Never>? = nil
 
-    private let hapticFeedback = UINotificationFeedbackGenerator()
-
     var body: some View {
         NavigationStack {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                ScrollView {
-                    VStack(spacing: 18) {
-                        // 1. Clean Symmetrical Header
-                        headerSection
+            ScrollView {
+                VStack(spacing: 18) {
+                    // 1. Clean Symmetrical Header
+                    headerSection
 
-                        // 2. Monolith Cockpit Hero: Countdown Ring with Embedded Telemetry
-                        monolithCockpitRing(now: context.date)
+                    // 2. Monolith Cockpit Hero: Countdown Ring with Embedded Telemetry (Tightly scoped 1Hz timer)
+                    monolithCockpitRing()
 
-                        // 3. Heavy Industrial Plunger Button: ONLY available when an armed task needs to be disengaged
-                        if let nearest = node.nearestUpcomingTask(after: context.date), !nearest.isCompletedForToday(asOf: context.date) {
-                            let stakeText = nearest.isPledged && nearest.pledgeAmount > 0 ? " · $\(Int(nearest.pledgeAmount)) AT RISK" : ""
-                            let isVerified = isInsideGeofence
-                            let dist = calculatedDistance ?? 0
+                    // 3. Heavy Industrial Plunger Button: ONLY available when an armed task needs to be disengaged
+                    let now = Date()
+                    if let nearest = node.nearestUpcomingTask(after: now), (!nearest.isCompletedForToday(asOf: now) || showingMomentaryCompletion) {
+                        let stakeText = nearest.isPledged && nearest.pledgeAmount > 0 ? " · $\(Int(nearest.pledgeAmount)) AT RISK" : ""
+                        let isVerified = isInsideGeofence
+                        let dist = calculatedDistance ?? 0
 
-                            IndustrialPlungerButton(
-                                title: isVerified ? "HOLD TO DISENGAGE E-FUSE (\(nearest.title.uppercased())\(stakeText))" : "GPS VERIFYING (\(Int(dist))m AWAY)",
-                                pressedTitle: "DISENGAGING CIRCUIT BREAKER...",
-                                isCompleted: nearest.isCompletedForToday(asOf: context.date),
-                                isGeofenceVerified: isVerified,
-                                distanceAwayMeters: calculatedDistance,
-                                requiredRadiusMeters: node.radius,
-                                onOutsideLocationTapped: {
-                                    geoAlertDistance = Int(calculatedDistance ?? 0)
-                                    showingGeoVerificationAlert = true
-                                },
-                                onHoldProgressChanged: { holding, prog in
-                                    withAnimation(.linear(duration: 0.05)) {
-                                        isHoldingLocationScan = holding
-                                        locationScanProgress = prog
-                                    }
-                                },
-                                onComplete: {
-                                    triggerScanBurst()
-                                    triggerCheckInSuccess(for: nearest)
-                                }
-                            )
-                        }
-
-                        // 4. Tasks at this Location Section (with Stake Badges)
-                        tasksSection(now: context.date)
-
-                        // 5. Quiet Delete Node Action
-                        deleteButton
-                            .padding(.top, 4)
-                            .padding(.bottom, 24)
+                        IndustrialPlungerButton(
+                            title: isVerified ? "HOLD TO DISENGAGE E-FUSE (\(nearest.title.uppercased())\(stakeText))" : "GPS VERIFYING (\(Int(dist))m AWAY)",
+                            pressedTitle: "DISENGAGING CIRCUIT BREAKER...",
+                            isCompleted: nearest.isCompletedForToday(asOf: now) || showingMomentaryCompletion,
+                            isGeofenceVerified: isVerified,
+                            distanceAwayMeters: calculatedDistance,
+                            requiredRadiusMeters: node.radius,
+                            onOutsideLocationTapped: {
+                                geoAlertDistance = Int(calculatedDistance ?? 0)
+                                showingGeoVerificationAlert = true
+                            },
+                            onHoldProgressChanged: { holding, prog in
+                                isHoldingLocationScan = holding
+                                locationScanProgress = prog
+                            },
+                            onComplete: {
+                                triggerScanBurst()
+                                triggerCheckInSuccess(for: nearest)
+                            }
+                        )
+                        .transition(.opacity)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
+
+                    // 4. Tasks at this Location Section (with Stake Badges)
+                    tasksSection()
+
+                    // 5. Quiet Delete Node Action
+                    deleteButton
+                        .padding(.top, 4)
+                        .padding(.bottom, 24)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
             }
             .onAppear {
                 locationManager.startUpdatingUserLocation()
@@ -90,6 +86,7 @@ struct CommitmentDetailView: View {
             .onDisappear {
                 momentaryCompletionTimer?.cancel()
                 scanBurstTimer?.cancel()
+                locationManager.stopUpdatingUserLocation()
             }
             .alert("Geolocation Verification Required", isPresented: $showingGeoVerificationAlert) {
                 Button("OK", role: .cancel) { }
@@ -139,6 +136,7 @@ struct CommitmentDetailView: View {
             )
             .allowsHitTesting(false)
             .ignoresSafeArea()
+            .transition(.opacity)
         }
     }
 
@@ -203,42 +201,46 @@ struct CommitmentDetailView: View {
 
     // MARK: - 2. Monolith Cockpit Hero (Embedded Burning Fuse Countdown)
 
-    private func monolithCockpitRing(now: Date) -> some View {
-        let nearest = node.nearestUpcomingTask(after: now)
-        let isDone = showingMomentaryCompletion
-        let progress = node.fuseProgress(asOf: now) ?? (node.tasks.isEmpty ? 0 : 1)
-        let timeRemaining = nearest?.timeRemaining(asOf: now) ?? 0
-        let distance = calculatedDistance
+    private func monolithCockpitRing() -> some View {
+        TimelineView(.periodic(from: .now, by: 1.0)) { context in
+            let now = context.date
+            let nearest = node.nearestUpcomingTask(after: now)
+            let isDone = showingMomentaryCompletion
+            let progress = node.fuseProgress(asOf: now) ?? (node.tasks.isEmpty ? 0 : 1)
+            let timeRemaining = nearest?.timeRemaining(asOf: now) ?? 0
+            let distance = calculatedDistance
 
-        let totalStreak = node.tasks.reduce(0) { $0 + $1.streak }
-        let pledgeAmount = nearest?.pledgeAmount ?? 0.0
-        let isPledged = nearest?.isPledged ?? false
+            let totalStreak = node.tasks.reduce(0) { $0 + $1.streak }
+            let pledgeAmount = nearest?.pledgeAmount ?? 0.0
+            let isPledged = nearest?.isPledged ?? false
 
-        // Only show task countdown if there is an active pending task not completed today and not missed.
-        // Once checked in or missed, activeTaskTitle is nil, which automatically shows the Tactical Geodesic Radar Scope!
-        let activeTaskTitle: String? = (nearest != nil && !nearest!.isCompletedForToday(asOf: now) && !nearest!.isMissed(asOf: now)) ? nearest?.title : nil
+            // Only show task countdown if there is an active pending task not completed today and not missed.
+            // Once checked in or missed, activeTaskTitle is nil, which automatically shows the Tactical Geodesic Radar Scope!
+            let activeTaskTitle: String? = (nearest != nil && !nearest!.isCompletedForToday(asOf: now) && !nearest!.isMissed(asOf: now)) ? nearest?.title : nil
 
-        return BurningFuseCountdownView(
-            progress: progress,
-            timeRemaining: timeRemaining,
-            pledgeAmount: pledgeAmount,
-            isPledged: isPledged,
-            taskTitle: activeTaskTitle,
-            isCompleted: isDone,
-            totalStreak: totalStreak,
-            transitETA: distance != nil ? node.travelMode.formattedETA(distanceMeters: distance!) : nil,
-            transitModeIcon: distance != nil ? node.travelMode.iconName : nil,
-            distanceText: distance != nil ? TravelMode.formatMiles(distanceMeters: distance!) : nil,
-            isInsideLocation: isInsideGeofence,
-            geofenceRadiusMeters: node.radius,
-            onAddTask: { showingAddTaskSheet = true }
-        )
+            BurningFuseCountdownView(
+                progress: progress,
+                timeRemaining: timeRemaining,
+                pledgeAmount: pledgeAmount,
+                isPledged: isPledged,
+                taskTitle: activeTaskTitle,
+                isCompleted: isDone,
+                totalStreak: totalStreak,
+                transitETA: distance != nil ? node.travelMode.formattedETA(distanceMeters: distance!) : nil,
+                transitModeIcon: distance != nil ? node.travelMode.iconName : nil,
+                distanceText: distance != nil ? TravelMode.formatMiles(distanceMeters: distance!) : nil,
+                isInsideLocation: isInsideGeofence,
+                geofenceRadiusMeters: node.radius,
+                onAddTask: { showingAddTaskSheet = true }
+            )
+        }
     }
 
     // MARK: - 3. Tasks at this Location Section
 
-    private func tasksSection(now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private func tasksSection() -> some View {
+        let now = Date()
+        return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("TASKS AT THIS LOCATION")
                     .font(.system(size: 11, weight: .bold))
@@ -290,16 +292,6 @@ struct CommitmentDetailView: View {
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)
 
-                    if task.streak > 0 {
-                        HStack(spacing: 2) {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.orange)
-                            Text("\(task.streak)")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                        }
-                    }
-
                     if task.isPledged && task.pledgeAmount > 0 {
                         Text("$\(Int(task.pledgeAmount))")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
@@ -332,6 +324,7 @@ struct CommitmentDetailView: View {
                 .overlay(
                     Capsule().stroke(Color.green.opacity(0.55), lineWidth: 1.0)
                 )
+                .transition(.opacity)
             } else if isMissed && missedAmount > 0 {
                 HStack(spacing: 4) {
                     Text("-$\(Int(missedAmount))")
@@ -344,6 +337,7 @@ struct CommitmentDetailView: View {
                 .overlay(
                     Capsule().stroke(Color.red.opacity(0.35), lineWidth: 0.8)
                 )
+                .transition(.opacity)
             } else if isMissed {
                 HStack(spacing: 4) {
                     Image(systemName: "xmark")
@@ -353,13 +347,14 @@ struct CommitmentDetailView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(Color(.tertiarySystemFill), in: Capsule())
+                .transition(.opacity)
             } else {
                 Button {
                     if isInsideGeofence {
                         triggerScanBurst()
                         triggerCheckInSuccess(for: task)
                     } else {
-                        hapticFeedback.notificationOccurred(.warning)
+                        HapticManager.triggerNotification(.warning)
                         geoAlertDistance = Int(calculatedDistance ?? 0)
                         showingGeoVerificationAlert = true
                     }
@@ -376,6 +371,7 @@ struct CommitmentDetailView: View {
                     .foregroundStyle(isInsideGeofence ? Color.white : Color.orange)
                 }
                 .buttonStyle(.plain)
+                .transition(.opacity)
             }
 
             // Task Delete Button
@@ -408,7 +404,9 @@ struct CommitmentDetailView: View {
     // MARK: - Helpers
 
     private func triggerScanBurst() {
-        withAnimation(.easeOut(duration: 0.2)) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
             isScanBursting = true
             isHoldingLocationScan = false
             locationScanProgress = 1.0
@@ -418,7 +416,9 @@ struct CommitmentDetailView: View {
         scanBurstTimer = Task {
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             if !Task.isCancelled {
-                withAnimation(.easeInOut(duration: 0.4)) {
+                var resetTransaction = Transaction()
+                resetTransaction.disablesAnimations = true
+                withTransaction(resetTransaction) {
                     isScanBursting = false
                     locationScanProgress = 0.0
                 }
@@ -427,8 +427,10 @@ struct CommitmentDetailView: View {
     }
 
     private func triggerCheckInSuccess(for task: HabitTask) {
-        hapticFeedback.notificationOccurred(.success)
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.75)) {
+        HapticManager.triggerNotification(.success)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
             task.checkInEarly(
                 now: Date(),
                 isLocationVerified: true,
@@ -442,7 +444,9 @@ struct CommitmentDetailView: View {
         momentaryCompletionTimer = Task {
             try? await Task.sleep(nanoseconds: 2_500_000_000) // Momentary 2.5s celebration
             if !Task.isCancelled {
-                withAnimation(.easeInOut(duration: 0.55)) {
+                var resetTransaction = Transaction()
+                resetTransaction.disablesAnimations = true
+                withTransaction(resetTransaction) {
                     showingMomentaryCompletion = false
                 }
             }

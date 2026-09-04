@@ -85,9 +85,7 @@ final class HabitTask {
         components.hour = deadlineHour
         components.minute = deadlineMinute
         if let date = Calendar.current.date(from: components) {
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
+            return TaskDateFormatters.shortTime.string(from: date)
         }
         let period = deadlineHour >= 12 ? "PM" : "AM"
         let hour12 = deadlineHour == 0 ? 12 : (deadlineHour > 12 ? deadlineHour - 12 : deadlineHour)
@@ -115,9 +113,7 @@ final class HabitTask {
                 return "\(names.joined(separator: ", ")) at \(time)"
             }
         } else if let date = oneTimeDate {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEE, MMM d"
-            return "\(formatter.string(from: date)) at \(time)"
+            return "\(TaskDateFormatters.dayMonth.string(from: date)) at \(time)"
         }
         return "At \(time)"
     }
@@ -264,9 +260,9 @@ final class HabitTask {
     }
 
     func isCompletedForToday(asOf referenceDate: Date = Date(), calendar: Calendar = .current) -> Bool {
-        // 1. If check-in history records exist, check for a successful check-in today
-        if !history.isEmpty {
-            return history.contains { $0.success && calendar.isDate($0.date, inSameDayAs: referenceDate) }
+        // 1. Check most recent check-in history records first (O(1) lookup)
+        if let latestToday = history.reversed().first(where: { calendar.isDate($0.date, inSameDayAs: referenceDate) }) {
+            return latestToday.success
         }
         // 2. Fallback: must have an evaluated deadline today AND a positive streak (successful disarm)
         guard let last = lastEvaluatedDeadline else { return false }
@@ -318,4 +314,19 @@ final class HabitTask {
         NotificationManager.shared.sendTaskResultNotification(for: self, success: true)
         NotificationManager.shared.cancelPendingNotifications(for: self)
     }
+}
+
+/// Static cached DateFormatters to eliminate heavy locale parsing allocations on every view body pass
+private enum TaskDateFormatters {
+    static let shortTime: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        return f
+    }()
+
+    static let dayMonth: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d"
+        return f
+    }()
 }
