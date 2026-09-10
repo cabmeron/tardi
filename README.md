@@ -1,24 +1,32 @@
 # Tardi
 
-> **Tardi** is a high-stakes, location-first habit and punctuality tracker that holds you accountable through real financial forfeits. Set your destination, choose your mode of transit, and arrive by the deadline—if you're not inside the geofence on time, your streak resets and you lose real money. Powered by live travel ETAs and departure countdowns, Tardi ensures you show up on time when excuses are too costly.
-
+> **Tardi** is a high-stakes, location-first habit and punctuality tracker that holds you accountable through real financial forfeits
 ---
 
 <table border="0">
   <tr>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/f98adb1d-dfc3-4b4d-b701-52c3850687a1" width="160" alt="iPhone Screenshot 1" />
+      <img src="https://github.com/user-attachments/assets/2626de26-83aa-421a-9c36-2a78b7f72971" width="160" alt="iPhone Screenshot 1" />
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/6cf027d8-2a87-49eb-9693-bf66f521c5e4" width="160" alt="iPhone Screenshot 3" />
+      <img src="https://github.com/user-attachments/assets/252f39e5-b39b-4452-8d4a-33fc13ad15aa" width="160" alt="iPhone Screenshot 3" />
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/733db640-7149-4c35-816c-ed98178d27d2" width="160" alt="iPhone Screenshot 2" />
+      <img src="https://github.com/user-attachments/assets/e2b9419f-0719-4ff8-b807-00d0623c1314" width="160" alt="iPhone Screenshot 2" />
+    </td>
+        <td align="center">
+      <img src="https://github.com/user-attachments/assets/b3b9a2bc-b09c-4d81-b1a6-f0fc35ea3562" width="160" alt="iPhone Screenshot 2" />
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/ea0a6902-a433-4b72-884c-5318691977b9" width="160" alt="iPhone Screenshot 2" />
+    </td>
+        <td align="center">
+      <img src="https://github.com/user-attachments/assets/c8c65f27-871d-4bf5-82ad-8d7df5b30163" width="160" alt="iPhone Screenshot 2" />
     </td>
   </tr>
 </table>
-
 ---
+
 
 ## 🚀 How to Build and Run
 
